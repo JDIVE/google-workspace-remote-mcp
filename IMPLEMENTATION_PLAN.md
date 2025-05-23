@@ -271,7 +271,10 @@ export class GoogleOAuth {
     this.config = config;
   }
 
-  getAuthorizationUrl(state: string): string {
+  async getAuthorizationUrl(userId: string, env: Env): Promise<string> {
+    const state = generateSecureState();
+    await env.OAUTH_STATE.put(state, userId, { expirationTtl: 300 });
+
     const params = new URLSearchParams({
       client_id: this.config.clientId,
       redirect_uri: this.config.redirectUri,
@@ -745,6 +748,7 @@ import { RateLimiter } from './utils/rate-limit';
 
 export interface Env {
   OAUTH_TOKENS: KVNamespace;
+  OAUTH_STATE: KVNamespace;
   RATE_LIMITS: KVNamespace;
   GOOGLE_CLIENT_ID: string;
   GOOGLE_CLIENT_SECRET: string;
@@ -884,8 +888,9 @@ async function handleOAuthCallback(request: Request, env: Env): Promise<Response
   const code = url.searchParams.get('code');
   const state = url.searchParams.get('state');
 
-  if (!code || !state) {
-    return new Response('Invalid callback parameters', { status: 400 });
+  const userId = await consumeState(env, state);
+  if (!code || !userId) {
+    return new Response('Invalid state parameter', { status: 400 });
   }
 
   // Exchange code for tokens
@@ -905,8 +910,8 @@ async function handleOAuthCallback(request: Request, env: Env): Promise<Response
     const tokens = await oauth.exchangeCodeForTokens(code);
     
     // Store tokens
-    const storage = new TokenStorage(env.OAUTH_TOKENS, env.ENCRYPTION_KEY);
-    await storage.storeTokens(state, {
+  const storage = new TokenStorage(env.OAUTH_TOKENS, env.ENCRYPTION_KEY);
+  await storage.storeTokens(userId, {
       ...tokens,
       expires_at: Date.now() + (tokens.expires_in * 1000)
     });
@@ -1143,6 +1148,35 @@ export async function decrypt(encryptedText: string, key: string): Promise<strin
 }
 ```
 
+### Step 6.5: CSRF State Management
+Create `src/auth/state.ts`:
+```typescript
+import { Env } from '../index';
+
+export function generateSecureState(): string {
+  const array = new Uint8Array(32);
+  crypto.getRandomValues(array);
+  return btoa(String.fromCharCode(...array))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=/g, '');
+}
+
+export async function createState(env: Env, userId: string): Promise<string> {
+  const state = generateSecureState();
+  await env.OAUTH_STATE.put(state, userId, { expirationTtl: 300 });
+  return state;
+}
+
+export async function consumeState(env: Env, state: string | null): Promise<string | null> {
+  if (!state) return null;
+  const userId = await env.OAUTH_STATE.get(state);
+  if (!userId) return null;
+  await env.OAUTH_STATE.delete(state);
+  return userId;
+}
+```
+
 ## Phase 7: Testing Setup
 
 ### Step 7.1: Vitest Configuration
@@ -1153,16 +1187,16 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     globals: true,
-    environment: 'miniflare',
-    environmentOptions: {
-      kvNamespaces: ['OAUTH_TOKENS', 'RATE_LIMITS'],
-      bindings: {
-        GOOGLE_CLIENT_ID: 'test-client-id',
-        GOOGLE_CLIENT_SECRET: 'test-client-secret',
-        ENCRYPTION_KEY: 'test-encryption-key-32-chars-long',
-        ALLOWED_ORIGINS: 'http://localhost:3000'
+      environment: 'miniflare',
+      environmentOptions: {
+        kvNamespaces: ['OAUTH_TOKENS', 'OAUTH_STATE', 'RATE_LIMITS'],
+        bindings: {
+          GOOGLE_CLIENT_ID: 'test-client-id',
+          GOOGLE_CLIENT_SECRET: 'test-client-secret',
+          ENCRYPTION_KEY: 'test-encryption-key-32-chars-long',
+          ALLOWED_ORIGINS: 'http://localhost:3000'
+        }
       }
-    }
   }
 });
 ```

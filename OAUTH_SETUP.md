@@ -174,20 +174,24 @@ authUrl.searchParams.set('response_type', 'code');
 authUrl.searchParams.set('scope', SCOPES.join(' '));
 authUrl.searchParams.set('access_type', 'offline'); // For refresh token
 authUrl.searchParams.set('prompt', 'consent'); // Force consent to get refresh token
-authUrl.searchParams.set('state', generateSecureState()); // CSRF protection
+
+// Generate and store state for CSRF protection
+const state = await createState(env, userId);
+authUrl.searchParams.set('state', state);
 ```
 
 ### 6.2 Callback Handler Implementation
 ```typescript
 async function handleOAuthCallback(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
-  const code = url.searchParams.get('code');
-  const state = url.searchParams.get('state');
-  
-  // Validate state for CSRF protection
-  if (!validateState(state)) {
-    return new Response('Invalid state parameter', { status: 400 });
-  }
+const code = url.searchParams.get('code');
+const state = url.searchParams.get('state');
+
+// Validate state for CSRF protection and retrieve user ID
+const userId = await consumeState(env, state);
+if (!code || !userId) {
+  return new Response('Invalid state parameter', { status: 400 });
+}
   
   // Exchange code for tokens
   const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
@@ -212,8 +216,8 @@ async function handleOAuthCallback(request: Request, env: Env): Promise<Response
   
   const tokens = await tokenResponse.json();
   
-  // Store tokens securely
-  await storeTokens(env, state, tokens);
+// Store tokens securely
+await storeTokens(env, userId, tokens);
   
   // Return success page
   return new Response(generateSuccessHTML(), {
@@ -269,6 +273,20 @@ function generateSecureState(): string {
     .replace(/\+/g, '-')
     .replace(/\//g, '_')
     .replace(/=/g, '');
+}
+
+async function createState(env: Env, userId: string): Promise<string> {
+  const state = generateSecureState();
+  await env.OAUTH_STATE.put(state, userId, { expirationTtl: 300 });
+  return state;
+}
+
+async function consumeState(env: Env, state: string | null): Promise<string | null> {
+  if (!state) return null;
+  const userId = await env.OAUTH_STATE.get(state);
+  if (!userId) return null;
+  await env.OAUTH_STATE.delete(state);
+  return userId;
 }
 ```
 
