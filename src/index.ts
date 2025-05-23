@@ -1,0 +1,302 @@
+import { MCPServer } from './mcp/server';
+import { SSETransport } from './mcp/transport';
+import { MCPRequest } from './mcp/types';
+import { GoogleOAuth } from './auth/oauth';
+import { TokenStorage } from './auth/storage';
+import { validateRequest } from './utils/validation';
+import { RateLimiter } from './utils/rate-limit';
+import { Logger } from './utils/logger';
+import { createState, consumeState } from './auth/state';
+
+export interface Env {
+  OAUTH_TOKENS: KVNamespace;
+  OAUTH_STATE: KVNamespace;
+  RATE_LIMITS: KVNamespace;
+  GOOGLE_CLIENT_ID: string;
+  GOOGLE_CLIENT_SECRET: string;
+  ENCRYPTION_KEY: string;
+  JWT_SECRET: string;
+  ALLOWED_ORIGINS: string;
+}
+
+export default {
+  async fetch(request: Request, env: Env): Promise<Response> {
+    const requestId = crypto.randomUUID();
+    const logger = new Logger('google-workspace-mcp');
+    
+    // CORS headers
+    const origin = request.headers.get('Origin');
+    const allowedOrigins = env.ALLOWED_ORIGINS.split(',').map(o => o.trim());
+    const corsHeaders: Record<string, string> = {
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Max-Age': '86400',
+    };
+
+    if (origin && allowedOrigins.includes(origin)) {
+      corsHeaders['Access-Control-Allow-Origin'] = origin;
+    }
+
+    // Handle preflight
+    if (request.method === 'OPTIONS') {
+      return new Response(null, { status: 204, headers: corsHeaders });
+    }
+
+    // Security headers
+    const securityHeaders = {
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
+      'X-XSS-Protection': '1; mode=block',
+      'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+      'Content-Security-Policy': "default-src 'self'",
+      ...corsHeaders
+    };
+
+    try {
+      const url = new URL(request.url);
+      
+      // OAuth callback handler
+      if (url.pathname === '/oauth/callback') {
+        return handleOAuthCallback(request, env, requestId, logger);
+      }
+
+      // OAuth authorization endpoint
+      if (url.pathname === '/oauth/authorize') {
+        return handleOAuthAuthorize(request, env, requestId, logger);
+      }
+
+      // MCP SSE endpoint
+      if (url.pathname === '/mcp' && request.method === 'POST') {
+        return handleMCPRequest(request, env, corsHeaders, requestId, logger);
+      }
+
+      // Health check
+      if (url.pathname === '/health') {
+        return new Response('OK', { status: 200, headers: securityHeaders });
+      }
+
+      return new Response('Not Found', { status: 404, headers: securityHeaders });
+    } catch (error) {
+      logger.error({
+        requestId,
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: error instanceof Error ? error.message : 'Unknown error',
+          stack: error instanceof Error ? error.stack : undefined
+        }
+      });
+      
+      return new Response('Internal Server Error', { 
+        status: 500, 
+        headers: securityHeaders 
+      });
+    }
+  }
+};
+
+async function handleOAuthAuthorize(
+  request: Request, 
+  env: Env, 
+  requestId: string, 
+  logger: Logger
+): Promise<Response> {
+  const url = new URL(request.url);
+  const userId = url.searchParams.get('user_id');
+  const clientIp = request.headers.get('CF-Connecting-IP') || 'unknown';
+  
+  if (!userId) {
+    return new Response('Missing user_id parameter', { status: 400 });
+  }
+
+  const state = await createState(env, userId, clientIp);
+  if (!state) {
+    logger.warn({
+      requestId,
+      method: 'handleOAuthAuthorize',
+      metadata: { reason: 'Rate limit exceeded for state generation' }
+    });
+    return new Response('Too many authorization attempts', { status: 429 });
+  }
+
+  const oauth = new GoogleOAuth({
+    clientId: env.GOOGLE_CLIENT_ID,
+    clientSecret: env.GOOGLE_CLIENT_SECRET,
+    redirectUri: `${url.origin}/oauth/callback`,
+    scopes: [
+      'https://www.googleapis.com/auth/gmail.modify',
+      'https://www.googleapis.com/auth/calendar',
+      'https://www.googleapis.com/auth/drive.file',
+      'https://www.googleapis.com/auth/contacts.readonly'
+    ]
+  });
+
+  const authUrl = oauth.getAuthorizationUrl(state);
+  
+  logger.info({
+    requestId,
+    userId,
+    method: 'handleOAuthAuthorize',
+    metadata: { redirecting: true }
+  });
+
+  return Response.redirect(authUrl, 302);
+}
+
+async function handleOAuthCallback(
+  request: Request, 
+  env: Env, 
+  requestId: string, 
+  logger: Logger
+): Promise<Response> {
+  const url = new URL(request.url);
+  const code = url.searchParams.get('code');
+  const state = url.searchParams.get('state');
+
+  const userId = await consumeState(env, state, requestId);
+  if (!code || !userId) {
+    logger.warn({
+      requestId,
+      method: 'handleOAuthCallback',
+      metadata: { hasCode: !!code, hasValidState: !!userId }
+    });
+    return new Response('Invalid state parameter', { status: 400 });
+  }
+
+  const oauth = new GoogleOAuth({
+    clientId: env.GOOGLE_CLIENT_ID,
+    clientSecret: env.GOOGLE_CLIENT_SECRET,
+    redirectUri: `${url.origin}/oauth/callback`,
+    scopes: []
+  });
+
+  try {
+    const tokens = await oauth.exchangeCodeForTokens(code);
+    
+    const storage = new TokenStorage(env.OAUTH_TOKENS, env.ENCRYPTION_KEY);
+    await storage.storeTokens(userId, {
+      ...tokens,
+      expires_at: Date.now() + (tokens.expires_in * 1000)
+    });
+
+    logger.info({
+      requestId,
+      userId,
+      method: 'handleOAuthCallback',
+      metadata: { success: true }
+    });
+
+    return new Response(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Authorization Successful</title>
+        <style>
+          body { font-family: system-ui; text-align: center; padding: 50px; }
+          .success { color: #10b981; font-size: 24px; }
+        </style>
+      </head>
+      <body>
+        <div class="success">✓ Authorization successful!</div>
+        <p>You can close this window and return to your application.</p>
+      </body>
+      </html>
+    `, {
+      headers: { 'Content-Type': 'text/html' }
+    });
+  } catch (error) {
+    logger.error({
+      requestId,
+      userId,
+      method: 'handleOAuthCallback',
+      error: {
+        code: 'OAUTH_EXCHANGE_FAILED',
+        message: error instanceof Error ? error.message : 'Token exchange failed'
+      }
+    });
+    
+    return new Response('Authorization failed', { status: 500 });
+  }
+}
+
+async function handleMCPRequest(
+  request: Request, 
+  env: Env, 
+  corsHeaders: Record<string, string>,
+  requestId: string,
+  logger: Logger
+): Promise<Response> {
+  const startTime = Date.now();
+  
+  // Validate authorization
+  const authHeader = request.headers.get('Authorization');
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return new Response('Unauthorized', { status: 401, headers: corsHeaders });
+  }
+
+  try {
+    const userId = await validateRequest(authHeader, env.JWT_SECRET);
+    if (!userId) {
+      return new Response('Invalid token', { status: 401, headers: corsHeaders });
+    }
+
+    // Rate limiting
+    const rateLimiter = new RateLimiter(env.RATE_LIMITS);
+    const allowed = await rateLimiter.checkLimit(userId);
+    
+    if (!allowed) {
+      logger.warn({
+        requestId,
+        userId,
+        method: 'handleMCPRequest',
+        metadata: { reason: 'Rate limit exceeded' }
+      });
+      
+      return new Response('Rate limit exceeded', { 
+        status: 429, 
+        headers: {
+          ...corsHeaders,
+          'Retry-After': '60'
+        }
+      });
+    }
+
+    // Create SSE transport
+    const transport = new SSETransport();
+    const server = new MCPServer(transport, env, userId, logger);
+
+    // Initialize server
+    await server.initialize();
+
+    // Process request
+    const body = await request.json() as MCPRequest;
+    await server.handleRequest(body);
+
+    logger.info({
+      requestId,
+      userId,
+      method: 'handleMCPRequest',
+      duration: Date.now() - startTime,
+      metadata: { 
+        method: body.method,
+        success: true 
+      }
+    });
+
+    return transport.getResponse(corsHeaders);
+  } catch (error) {
+    logger.error({
+      requestId,
+      method: 'handleMCPRequest',
+      duration: Date.now() - startTime,
+      error: {
+        code: 'MCP_REQUEST_FAILED',
+        message: error instanceof Error ? error.message : 'Request processing failed'
+      }
+    });
+    
+    return new Response('Internal server error', { 
+      status: 500, 
+      headers: corsHeaders 
+    });
+  }
+}
