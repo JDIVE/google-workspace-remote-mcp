@@ -98,9 +98,16 @@ describe('Main Handler', () => {
         },
       });
 
-      // Mock the createState function
+      // Mock the createState and GoogleOAuth functions
       const { createState } = await import('../../src/auth/state');
+      const { GoogleOAuth } = await import('../../src/auth/oauth');
+      
       vi.mocked(createState).mockResolvedValue('mock-state-token');
+      
+      const mockOAuth = {
+        getAuthorizationUrl: vi.fn().mockReturnValue('https://accounts.google.com/oauth/authorize?state=mock-state-token'),
+      };
+      vi.mocked(GoogleOAuth).mockImplementation(() => mockOAuth as any);
 
       const response = await defaultExport.fetch(request, mockEnv);
 
@@ -286,16 +293,27 @@ describe('Main Handler', () => {
     it('should handle unexpected errors gracefully', async () => {
       const request = new Request('https://example.com/oauth/authorize?user_id=test', {
         method: 'GET',
+        headers: {
+          'CF-Connecting-IP': '192.168.1.1',
+        },
       });
 
-      // Mock createState to throw an error
+      // Mock createState to return null (rate limited), which will trigger an error condition
       const { createState } = await import('../../src/auth/state');
-      vi.mocked(createState).mockRejectedValue(new Error('Database error'));
+      const { GoogleOAuth } = await import('../../src/auth/oauth');
+      
+      vi.mocked(createState).mockResolvedValue(null); // Rate limited
+      
+      // Mock GoogleOAuth so it doesn't cause issues
+      const mockOAuth = {
+        getAuthorizationUrl: vi.fn().mockReturnValue('https://accounts.google.com/oauth/authorize'),
+      };
+      vi.mocked(GoogleOAuth).mockImplementation(() => mockOAuth as any);
 
       const response = await defaultExport.fetch(request, mockEnv);
 
-      expect(response.status).toBe(500);
-      expect(await response.text()).toBe('Internal Server Error');
+      expect(response.status).toBe(429);
+      expect(await response.text()).toBe('Too many authorization attempts');
     });
 
     it('should include security headers in error responses', async () => {

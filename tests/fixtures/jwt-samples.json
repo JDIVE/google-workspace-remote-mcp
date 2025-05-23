@@ -1,0 +1,32 @@
+{
+  "validToken": {
+    "header": {
+      "alg": "HS256",
+      "typ": "JWT"
+    },
+    "payload": {
+      "sub": "user-123",
+      "iat": 1700000000,
+      "exp": 1700003600,
+      "email": "test@example.com"
+    }
+  },
+  "expiredToken": {
+    "header": {
+      "alg": "HS256",
+      "typ": "JWT"
+    },
+    "payload": {
+      "sub": "user-456",
+      "iat": 1600000000,
+      "exp": 1600003600,
+      "email": "expired@example.com"
+    }
+  },
+  "malformedTokens": [
+    "invalid.token",
+    "invalid.token.with.too.many.parts.here",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.invalid-payload.signature",
+    "valid-header.eyJzdWIiOiJ0ZXN0IiwiaWF0IjoxNjAwMDAwMDAwfQ.invalid-signature"
+  ]
+}

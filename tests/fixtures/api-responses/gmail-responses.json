@@ -1,0 +1,76 @@
+{
+  "searchMessages": {
+    "success": {
+      "messages": [
+        {
+          "id": "12345",
+          "threadId": "67890"
+        },
+        {
+          "id": "23456",
+          "threadId": "78901"
+        }
+      ],
+      "nextPageToken": "token123",
+      "resultSizeEstimate": 2
+    },
+    "empty": {
+      "messages": [],
+      "resultSizeEstimate": 0
+    }
+  },
+  "getMessage": {
+    "success": {
+      "id": "12345",
+      "threadId": "67890",
+      "labelIds": ["INBOX", "UNREAD"],
+      "snippet": "This is a test email message...",
+      "payload": {
+        "headers": [
+          {
+            "name": "Subject",
+            "value": "Test Email Subject"
+          },
+          {
+            "name": "From",
+            "value": "sender@example.com"
+          },
+          {
+            "name": "To",
+            "value": "recipient@example.com"
+          }
+        ],
+        "body": {
+          "data": "VGhpcyBpcyBhIHRlc3QgZW1haWwgYm9keQ=="
+        }
+      }
+    }
+  },
+  "sendMessage": {
+    "success": {
+      "id": "34567",
+      "threadId": "89012",
+      "labelIds": ["SENT"]
+    }
+  },
+  "errors": {
+    "unauthorized": {
+      "error": {
+        "code": 401,
+        "message": "Request is missing required authentication credential."
+      }
+    },
+    "rateLimited": {
+      "error": {
+        "code": 429,
+        "message": "Quota exceeded for quota metric 'Queries' and limit 'Queries per day'."
+      }
+    },
+    "notFound": {
+      "error": {
+        "code": 404,
+        "message": "Requested entity was not found."
+      }
+    }
+  }
+}
