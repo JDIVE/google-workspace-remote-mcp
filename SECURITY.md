@@ -76,6 +76,25 @@ When contributing to this project, please follow these security guidelines:
 - **CSRF Protection**: Needs implementation (see issue #3)
 - **Key Rotation**: Process needs documentation (see issue #5)
 
+### Key Rotation Process
+
+Regular rotation of the encryption key used for token storage is required to
+limit the impact of a potential key compromise. The recommended procedure is:
+
+1. Generate a new 32‑character key and add it to the Worker as
+   `ENCRYPTION_KEY_NEW`.
+2. Deploy the Worker with both `ENCRYPTION_KEY` (current) and
+   `ENCRYPTION_KEY_NEW` available.
+3. On each token read, attempt decryption with the old key.  If successful,
+   re‑encrypt the token using the new key and store it back in KV.
+4. Once all tokens have been re‑encrypted, remove the old key and rename
+   `ENCRYPTION_KEY_NEW` to `ENCRYPTION_KEY`.
+5. Record the rotation date in the audit log and securely archive the retired
+   key for at least seven days in case a rollback is required.
+
+Keys should be rotated at least every 90 days or immediately if a compromise is
+suspected.
+
 ### Google Workspace API Security
 - Follows Google OAuth 2.0 implementation
 - Scopes limited to required APIs only
