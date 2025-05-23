@@ -66,7 +66,7 @@ export class TokenManager {
 
         await this.storage.storeTokens(userId, updatedTokens);
         return updatedTokens;
-      } catch (error) {
+      } catch {
         throw new Error("Failed to refresh access token");
       }
     }

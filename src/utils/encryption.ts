@@ -86,7 +86,7 @@ export async function encrypt(data: string, env: Env): Promise<string> {
 export async function decrypt(
   encrypted: string,
   env: Env,
-  tokenKey?: string,
+  _tokenKey?: string,
 ): Promise<string> {
   const parsed = JSON.parse(encrypted) as EncryptedData;
   const currentKey = await deriveKey(env.ENCRYPTION_KEY);
@@ -94,7 +94,7 @@ export async function decrypt(
   // Try current key first
   try {
     return await decryptWithKey(parsed, currentKey);
-  } catch (error) {
+  } catch {
     // Fall back to old key if available
     if (env.ENCRYPTION_KEY_OLD) {
       const oldKey = await deriveKey(env.ENCRYPTION_KEY_OLD);

@@ -1,5 +1,5 @@
 import { SSETransport } from "./transport";
-import { MCPRequest, MCPResponse, MCPError, Tool, ServerInfo } from "./types";
+import { MCPRequest, MCPResponse, Tool, ServerInfo } from "./types";
 import { getGmailTools } from "../tools/gmail";
 import { getCalendarTools } from "../tools/calendar";
 import { getDriveTools } from "../tools/drive";

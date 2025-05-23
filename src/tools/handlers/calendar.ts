@@ -63,9 +63,9 @@ async function createEvent(calendar: any, params: any) {
     end: params.end,
   };
 
-  if (params.location) event.location = params.location;
-  if (params.attendees) event.attendees = params.attendees;
-  if (params.recurrence) event.recurrence = params.recurrence;
+  if (params.location) {event.location = params.location;}
+  if (params.attendees) {event.attendees = params.attendees;}
+  if (params.recurrence) {event.recurrence = params.recurrence;}
 
   const response = await calendar.events.insert({
     calendarId: params.calendarId || "primary",
@@ -78,13 +78,13 @@ async function createEvent(calendar: any, params: any) {
 async function updateEvent(calendar: any, params: any) {
   const updates: any = {};
 
-  if (params.summary !== undefined) updates.summary = params.summary;
+  if (params.summary !== undefined) {updates.summary = params.summary;}
   if (params.description !== undefined)
-    updates.description = params.description;
-  if (params.start !== undefined) updates.start = params.start;
-  if (params.end !== undefined) updates.end = params.end;
-  if (params.location !== undefined) updates.location = params.location;
-  if (params.attendees !== undefined) updates.attendees = params.attendees;
+    {updates.description = params.description;}
+  if (params.start !== undefined) {updates.start = params.start;}
+  if (params.end !== undefined) {updates.end = params.end;}
+  if (params.location !== undefined) {updates.location = params.location;}
+  if (params.attendees !== undefined) {updates.attendees = params.attendees;}
 
   const response = await calendar.events.patch({
     calendarId: params.calendarId || "primary",

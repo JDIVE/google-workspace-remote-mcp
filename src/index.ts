@@ -281,7 +281,7 @@ async function handleMCPRequest(
     let body: MCPRequest;
     try {
       body = (await request.json()) as MCPRequest;
-    } catch (parseError) {
+    } catch {
       logger.error({
         requestId,
         userId,

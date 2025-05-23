@@ -99,8 +99,8 @@ async function uploadFile(drive: any, params: any) {
     name: params.name,
   };
 
-  if (params.parents) fileMetadata.parents = params.parents;
-  if (params.description) fileMetadata.description = params.description;
+  if (params.parents) {fileMetadata.parents = params.parents;}
+  if (params.description) {fileMetadata.description = params.description;}
 
   const media = {
     mimeType: params.mimeType || "application/octet-stream",
@@ -119,12 +119,12 @@ async function uploadFile(drive: any, params: any) {
 async function updateFile(drive: any, params: any) {
   const fileMetadata: any = {};
 
-  if (params.name !== undefined) fileMetadata.name = params.name;
+  if (params.name !== undefined) {fileMetadata.name = params.name;}
   if (params.addParents || params.removeParents) {
     const update: any = {};
-    if (params.addParents) update.addParents = params.addParents.join(",");
+    if (params.addParents) {update.addParents = params.addParents.join(",");}
     if (params.removeParents)
-      update.removeParents = params.removeParents.join(",");
+      {update.removeParents = params.removeParents.join(",");}
     Object.assign(fileMetadata, update);
   }
 
@@ -169,8 +169,8 @@ async function createFolder(drive: any, params: any) {
     mimeType: "application/vnd.google-apps.folder",
   };
 
-  if (params.parents) fileMetadata.parents = params.parents;
-  if (params.description) fileMetadata.description = params.description;
+  if (params.parents) {fileMetadata.parents = params.parents;}
+  if (params.description) {fileMetadata.description = params.description;}
 
   const response = await drive.files.create({
     requestBody: fileMetadata,
@@ -186,8 +186,8 @@ async function shareFile(drive: any, params: any) {
     role: params.role,
   };
 
-  if (params.emailAddress) permission.emailAddress = params.emailAddress;
-  if (params.domain) permission.domain = params.domain;
+  if (params.emailAddress) {permission.emailAddress = params.emailAddress;}
+  if (params.domain) {permission.domain = params.domain;}
 
   const response = await drive.permissions.create({
     fileId: params.fileId,
