@@ -81,16 +81,23 @@ When contributing to this project, please follow these security guidelines:
 Regular rotation of the encryption key used for token storage is required to
 limit the impact of a potential key compromise. The recommended procedure is:
 
-1. Generate a new 32‑character key and add it to the Worker as
-   `ENCRYPTION_KEY_NEW`.
-2. Deploy the Worker with both `ENCRYPTION_KEY` (current) and
-   `ENCRYPTION_KEY_NEW` available.
-3. On each token read, attempt decryption with the old key.  If successful,
-   re‑encrypt the token using the new key and store it back in KV.
-4. Once all tokens have been re‑encrypted, remove the old key and rename
-   `ENCRYPTION_KEY_NEW` to `ENCRYPTION_KEY`.
-5. Record the rotation date in the audit log and securely archive the retired
-   key for at least seven days in case a rollback is required.
+1. Generate a new encryption key using `npm run rotate-keys generate`
+2. Save current `ENCRYPTION_KEY` as `ENCRYPTION_KEY_OLD` in Worker secrets
+3. Update `ENCRYPTION_KEY` with the newly generated key
+4. Deploy the Worker with dual-key support (automatic with the implementation)
+5. Monitor rotation progress - tokens are re-encrypted automatically on read
+6. Verify all tokens are accessible using monitoring endpoints
+7. Once rotation is complete, remove `ENCRYPTION_KEY_OLD`
+
+**Implementation Details**:
+- Automatic re-encryption when tokens are accessed with old key
+- Distributed locking prevents race conditions during re-encryption
+- Progress tracking via `getRotationProgress()` function
+- Verification tool ensures all tokens remain accessible
+
+**Monitoring Endpoints** (require admin authentication):
+- `/admin/rotation-status` - Check rotation progress
+- `/admin/verify-rotation` - Verify all tokens can be decrypted
 
 Keys should be rotated at least every 90 days or immediately if a compromise is
 suspected.
