@@ -65,20 +65,30 @@ google-workspace-remote-mcp/
 │   ├── auth/
 │   │   ├── oauth.ts          # OAuth flow implementation
 │   │   ├── storage.ts        # KV storage interface
-│   │   └── tokens.ts         # Token management
+│   │   ├── tokens.ts         # Token management
+│   │   └── state.ts          # CSRF state management
 │   ├── tools/
-│   │   ├── gmail.ts          # Gmail tool implementations
-│   │   ├── calendar.ts       # Calendar tool implementations
-│   │   ├── drive.ts          # Drive tool implementations
-│   │   └── contacts.ts       # Contacts tool implementations
+│   │   ├── gmail.ts          # Gmail tool definitions
+│   │   ├── calendar.ts       # Calendar tool definitions
+│   │   ├── drive.ts          # Drive tool definitions
+│   │   ├── contacts.ts       # Contacts tool definitions
+│   │   └── handlers/         # Tool implementation handlers
+│   │       ├── index.ts      # Handler routing
+│   │       ├── gmail.ts      # Gmail implementation
+│   │       ├── calendar.ts   # Calendar implementation
+│   │       ├── drive.ts      # Drive implementation
+│   │       └── contacts.ts   # Contacts implementation
 │   └── utils/
 │       ├── errors.ts         # Error handling utilities
-│       ├── validation.ts     # Input validation
-│       └── rate-limit.ts     # Rate limiting logic
+│       ├── validation.ts     # JWT validation
+│       ├── rate-limit.ts     # Rate limiting logic
+│       ├── logger.ts         # Structured logging
+│       └── encryption.ts     # Token encryption
 ├── tests/
 │   ├── unit/                 # Unit tests
 │   ├── integration/          # Integration tests
 │   └── fixtures/             # Test fixtures
+├── wrangler.toml             # Cloudflare configuration
 ├── wrangler.toml.example     # Sample Cloudflare configuration
 ├── .dev.vars.example         # Sample environment variables
 ├── package.json              # Dependencies

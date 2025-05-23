@@ -1,0 +1,44 @@
+{
+  "name": "google-workspace-remote-mcp",
+  "version": "1.0.0",
+  "description": "A Cloudflare Worker-based MCP (Model Context Protocol) server providing secure remote access to Google Workspace APIs including Gmail, Calendar, Drive, and Contacts.",
+  "main": "index.js",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest run --coverage",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts",
+    "format": "prettier --write 'src/**/*.ts'"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JDIVE/google-workspace-remote-mcp.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/JDIVE/google-workspace-remote-mcp/issues"
+  },
+  "homepage": "https://github.com/JDIVE/google-workspace-remote-mcp#readme",
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250523.0",
+    "@typescript-eslint/eslint-plugin": "^8.32.1",
+    "@typescript-eslint/parser": "^8.32.1",
+    "@vitest/ui": "^3.1.4",
+    "eslint": "^9.27.0",
+    "miniflare": "^4.20250508.3",
+    "prettier": "^3.5.3",
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.4",
+    "vitest-environment-miniflare": "^2.14.4",
+    "wrangler": "^4.16.1"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "googleapis": "^149.0.0"
+  }
+}
