@@ -1,5 +1,17 @@
 # Example environment variables for local development
+# Copy this file to .dev.vars (which is gitignored) and update with your values
+
+# OAuth credentials from Google Cloud Console
 GOOGLE_CLIENT_ID=your_client_id
 GOOGLE_CLIENT_SECRET=your_client_secret
+
+# 32-character encryption key for token storage
+# Generate with: openssl rand -hex 16
 ENCRYPTION_KEY=32_char_encryption_key_for_dev
+
+# Secret for JWT validation  
+# Generate with: openssl rand -hex 32
+JWT_SECRET=your_jwt_secret_here
+
+# Comma-separated list of allowed origins for CORS
 ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173

@@ -1,4 +1,5 @@
 # Example Cloudflare Worker configuration
+# Copy this file to wrangler.toml and update with your values
 name = "google-workspace-mcp"
 main = "src/index.ts"
 compatibility_date = "2024-01-01"
@@ -8,18 +9,30 @@ compatibility_date = "2024-01-01"
 ALLOWED_ORIGINS = "https://claude.ai,https://api.anthropic.com"
 
 [[kv_namespaces]]
-# OAuth token storage
+# OAuth token storage with 90-day TTL for refresh tokens
 binding = "OAUTH_TOKENS"
 id = "your-oauth-tokens-namespace-id"
 preview_id = "your-oauth-tokens-preview-id"
 
 [[kv_namespaces]]
-# Rate limit storage
+# CSRF state tokens with 5-minute TTL for OAuth flow security
+binding = "OAUTH_STATE"
+id = "your-oauth-state-namespace-id"
+preview_id = "your-oauth-state-preview-id"
+
+[[kv_namespaces]]
+# Rate limiting with 1-minute windows per user/IP
 binding = "RATE_LIMITS"
 id = "your-rate-limits-namespace-id"
 preview_id = "your-rate-limits-preview-id"
 
+# For production deployments, consider using specific routes
+# [env.production]
+# routes = ["api.yourdomain.com/*"]
+
 [secrets]
-# GOOGLE_CLIENT_ID
-# GOOGLE_CLIENT_SECRET
-# ENCRYPTION_KEY
+# Set these using wrangler secret put VARIABLE_NAME
+# GOOGLE_CLIENT_ID - From Google Cloud Console
+# GOOGLE_CLIENT_SECRET - From Google Cloud Console  
+# ENCRYPTION_KEY - 32-character key for token encryption
+# JWT_SECRET - Secret for JWT validation
