@@ -295,6 +295,12 @@ interface LogEntry {
 }
 ```
 
+All logs **must** be emitted in structured JSON format. A small utility is
+provided in `src/utils/logger.ts` which wraps `console.log` and ensures that
+each entry matches the `LogEntry` interface. Use this logger for all OAuth and
+tool interactions so that events can be forwarded to Cloudflare Logpush or other
+aggregation services.
+
 ## Browser Compatibility
 
 ### SSE Support Required

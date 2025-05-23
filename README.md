@@ -74,7 +74,8 @@ google-workspace-remote-mcp/
 │   └── utils/
 │       ├── errors.ts         # Error handling utilities
 │       ├── validation.ts     # Input validation
-│       └── rate-limit.ts     # Rate limiting logic
+│       ├── rate-limit.ts     # Rate limiting logic
+│       └── logger.ts         # Structured logging helper
 ├── tests/
 │   ├── unit/                 # Unit tests
 │   ├── integration/          # Integration tests
@@ -120,6 +121,7 @@ google-workspace-remote-mcp/
 - Request validation prevents unauthorized access
 - Rate limiting protects against abuse
 - Minimal data retention policy
+- Structured logging for auditing and debugging
 
 ## Performance Optimizations
 
