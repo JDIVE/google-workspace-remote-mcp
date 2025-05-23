@@ -6,57 +6,38 @@ export class RateLimiter {
 
   async checkLimit(userId: string): Promise<boolean> {
     const key = `rate:${userId}`;
-    const now = Date.now();
-    const windowStart = now - (this.constructor as typeof RateLimiter).WINDOW_SIZE * 1000;
 
     // Get current count
-    const data = await this.kvNamespace.get(key);
-    let requests: number[] = [];
-    
-    if (data) {
-      try {
-        requests = JSON.parse(data);
-        // Filter out old requests
-        requests = requests.filter(timestamp => timestamp > windowStart);
-      } catch {
-        requests = [];
-      }
-    }
+    const countStr = await this.kvNamespace.get(key);
+    const currentCount = countStr ? parseInt(countStr, 10) : 0;
 
     // Check if limit exceeded
-    if (requests.length >= (this.constructor as typeof RateLimiter).MAX_REQUESTS) {
+    if (currentCount >= (this.constructor as typeof RateLimiter).MAX_REQUESTS) {
       return false;
     }
 
-    // Add current request
-    requests.push(now);
-
-    // Store updated count with TTL
-    await this.kvNamespace.put(
-      key, 
-      JSON.stringify(requests),
-      { expirationTtl: (this.constructor as typeof RateLimiter).WINDOW_SIZE }
-    );
+    // Increment counter with TTL
+    await this.kvNamespace.put(key, (currentCount + 1).toString(), {
+      expirationTtl: (this.constructor as typeof RateLimiter).WINDOW_SIZE,
+    });
 
     return true;
   }
 
   async getRemainingRequests(userId: string): Promise<number> {
     const key = `rate:${userId}`;
-    const now = Date.now();
-    const windowStart = now - (this.constructor as typeof RateLimiter).WINDOW_SIZE * 1000;
 
-    const data = await this.kvNamespace.get(key);
-    if (!data) {
-      return (this.constructor as typeof RateLimiter).MAX_REQUESTS;
-    }
+    const countStr = await this.kvNamespace.get(key);
+    const currentCount = countStr ? parseInt(countStr, 10) : 0;
 
-    try {
-      const requests: number[] = JSON.parse(data);
-      const validRequests = requests.filter(timestamp => timestamp > windowStart);
-      return Math.max(0, (this.constructor as typeof RateLimiter).MAX_REQUESTS - validRequests.length);
-    } catch {
-      return (this.constructor as typeof RateLimiter).MAX_REQUESTS;
-    }
+    return Math.max(
+      0,
+      (this.constructor as typeof RateLimiter).MAX_REQUESTS - currentCount,
+    );
+  }
+
+  async resetLimit(userId: string): Promise<void> {
+    const key = `rate:${userId}`;
+    await this.kvNamespace.delete(key);
   }
 }
