@@ -4,7 +4,7 @@ This document summarizes suggested improvements for the Google Workspace Remote 
 
 ## Security Improvements
 
-- **Validate Authorization Tokens**: The current validation logic in `src/utils/validation.ts` is a placeholder that simply returns `'user-id'` if the token length is sufficient. Implement proper JWT validation or integrate with Cloudflare Access to verify user identity.
+- **Validate Authorization Tokens**: Tokens are now verified in `src/utils/validation.ts` using HMAC-SHA256 with the `JWT_SECRET` environment variable.
 - **CSRF Protection**: The implementation plan mentions CSRF protection but does not describe a concrete approach. Add state parameter checks and possibly double-submit tokens in the OAuth flow.
 - **Key Rotation**: Document a process for rotating the `ENCRYPTION_KEY` used for token encryption and ensure old tokens are re-encrypted or invalidated.
 - **Scope Minimization**: Ensure that OAuth scopes are restricted to Gmail, Calendar, Drive and People APIs only. Review `OAUTH_SETUP.md` and `IMPLEMENTATION_PLAN.md` to confirm that no additional scopes are requested.

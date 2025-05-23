@@ -1,0 +1,9 @@
+{
+  "name": "google-workspace-remote-mcp",
+  "version": "0.1.0",
+  "type": "commonjs",
+  "scripts": {
+    "build": "tsc",
+    "test": "npm run build && node --test dist/tests/*.js"
+  }
+}

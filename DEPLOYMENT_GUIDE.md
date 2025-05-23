@@ -31,6 +31,7 @@ Ensure all required secrets are set:
 - `GOOGLE_CLIENT_ID`
 - `GOOGLE_CLIENT_SECRET`
 - `ENCRYPTION_KEY`
+- `JWT_SECRET`
 
 ### 3. KV Namespaces
 Verify KV namespaces are created and bound correctly.
@@ -113,6 +114,10 @@ wrangler secret put GOOGLE_CLIENT_SECRET
 # Encryption Key (32 characters)
 wrangler secret put ENCRYPTION_KEY
 # Paste your encryption key when prompted
+
+# JWT verification secret
+wrangler secret put JWT_SECRET
+# Paste your JWT secret when prompted
 ```
 
 ### 3.2 Generate Encryption Key

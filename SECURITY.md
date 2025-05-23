@@ -48,7 +48,7 @@ When contributing to this project, please follow these security guidelines:
 ### Authentication & Authorization
 - Never commit credentials, tokens, or secrets
 - Use environment variables for sensitive configuration
-- Implement proper token validation (see issue #2)
+- Tokens are validated using the `JWT_SECRET` environment variable
 - Follow OAuth 2.0 best practices
 
 ### Data Protection
@@ -72,7 +72,7 @@ When contributing to this project, please follow these security guidelines:
 ## Known Security Considerations
 
 ### Current Implementation Status
-- **JWT Validation**: Currently using placeholder (see issue #2) - MUST be fixed before production
+- **JWT Validation**: Implemented with HMAC-SHA256 using `JWT_SECRET`
 - **CSRF Protection**: Needs implementation (see issue #3)
 - **Key Rotation**: Process needs documentation (see issue #5)
 

@@ -103,6 +103,7 @@ globs = ["**/*.js"]
 - `GOOGLE_CLIENT_ID`: OAuth 2.0 client ID
 - `GOOGLE_CLIENT_SECRET`: OAuth 2.0 client secret
 - `ENCRYPTION_KEY`: 32-character encryption key for token storage
+- `JWT_SECRET`: HMAC secret for verifying authorization tokens
 
 ### Worker Variables
 - `ALLOWED_ORIGINS`: Comma-separated list of allowed CORS origins
@@ -330,6 +331,7 @@ interface LogEntry {
 GOOGLE_CLIENT_ID=your_client_id
 GOOGLE_CLIENT_SECRET=your_client_secret
 ENCRYPTION_KEY=32_char_encryption_key_for_dev
+JWT_SECRET=dev_jwt_secret
 ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
 ```
 

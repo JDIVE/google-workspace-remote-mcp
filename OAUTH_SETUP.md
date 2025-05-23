@@ -153,6 +153,10 @@ wrangler secret put GOOGLE_CLIENT_SECRET
 # Set encryption key (generate a secure 32-character key)
 wrangler secret put ENCRYPTION_KEY
 # Enter a 32-character encryption key
+
+# Set JWT verification secret
+wrangler secret put JWT_SECRET
+# Enter the JWT secret when prompted
 ```
 
 ### 5.2 Generate Encryption Key

@@ -969,18 +969,29 @@ export function handleGoogleAPIError(error: any): MCPError {
 ### Step 6.2: Validation
 Create `src/utils/validation.ts`:
 ```typescript
+import { createHmac } from 'crypto';
+
 export function validateRequest(authHeader: string): string | null {
-  // Simple bearer token validation
-  // In production, implement proper JWT validation
+  const secret = process.env.JWT_SECRET;
+  if (!secret) throw new Error('JWT_SECRET not configured');
+
   const token = authHeader.replace('Bearer ', '');
-  
-  if (!token || token.length < 10) {
+  const parts = token.split('.');
+  if (parts.length !== 3) return null;
+
+  const [headerB64, payloadB64, signatureB64] = parts;
+  try {
+    const data = `${headerB64}.${payloadB64}`;
+    const expected = createHmac('sha256', secret).update(data).digest('base64url');
+    if (expected !== signatureB64) return null;
+
+    const payload = JSON.parse(Buffer.from(payloadB64, 'base64url').toString());
+    const now = Math.floor(Date.now() / 1000);
+    if (typeof payload.exp === 'number' && now >= payload.exp) return null;
+    return typeof payload.sub === 'string' ? payload.sub : null;
+  } catch {
     return null;
   }
-
-  // Extract user ID from token
-  // This is a placeholder - implement proper token parsing
-  return 'user-id';
 }
 
 export function validateToolArguments(tool: Tool, args: any): ValidationResult {
