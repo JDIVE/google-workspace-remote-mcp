@@ -1,4 +1,4 @@
-import { Tool } from '../mcp/types';
+import { Tool } from "../mcp/types";
 
 export function getContactsTools(): Tool[] {
   return [
@@ -12,24 +12,29 @@ export function getContactsTools(): Tool[] {
             type: "number",
             description: "Number of contacts to return (default: 10, max: 100)",
             minimum: 1,
-            maximum: 100
+            maximum: 100,
           },
           personFields: {
             type: "array",
             items: { type: "string" },
-            description: "Fields to include (e.g., 'names', 'emailAddresses', 'phoneNumbers')"
+            description:
+              "Fields to include (e.g., 'names', 'emailAddresses', 'phoneNumbers')",
           },
           sortOrder: {
             type: "string",
-            enum: ["FIRST_NAME_ASCENDING", "LAST_NAME_ASCENDING", "LAST_MODIFIED_DESCENDING"],
-            description: "Sort order for results"
+            enum: [
+              "FIRST_NAME_ASCENDING",
+              "LAST_NAME_ASCENDING",
+              "LAST_MODIFIED_DESCENDING",
+            ],
+            description: "Sort order for results",
           },
           resourceName: {
             type: "string",
-            description: "Resource name to list (default: 'people/me')"
-          }
-        }
-      }
+            description: "Resource name to list (default: 'people/me')",
+          },
+        },
+      },
     },
     {
       name: "contacts_get_person",
@@ -39,16 +44,18 @@ export function getContactsTools(): Tool[] {
         properties: {
           resourceName: {
             type: "string",
-            description: "Resource name of the person (e.g., 'people/c1234567890')"
+            description:
+              "Resource name of the person (e.g., 'people/c1234567890')",
           },
           personFields: {
             type: "array",
             items: { type: "string" },
-            description: "Fields to include (e.g., 'names', 'emailAddresses', 'phoneNumbers', 'organizations')"
-          }
+            description:
+              "Fields to include (e.g., 'names', 'emailAddresses', 'phoneNumbers', 'organizations')",
+          },
         },
-        required: ["resourceName"]
-      }
+        required: ["resourceName"],
+      },
     },
     {
       name: "contacts_search_people",
@@ -58,22 +65,22 @@ export function getContactsTools(): Tool[] {
         properties: {
           query: {
             type: "string",
-            description: "Search query string"
+            description: "Search query string",
           },
           pageSize: {
             type: "number",
             description: "Number of results to return (default: 10, max: 100)",
             minimum: 1,
-            maximum: 100
+            maximum: 100,
           },
           readMask: {
             type: "array",
             items: { type: "string" },
-            description: "Fields to include in results"
-          }
+            description: "Fields to include in results",
+          },
         },
-        required: ["query"]
-      }
+        required: ["query"],
+      },
     },
     {
       name: "contacts_create_contact",
@@ -83,11 +90,11 @@ export function getContactsTools(): Tool[] {
         properties: {
           givenName: {
             type: "string",
-            description: "First name"
+            description: "First name",
           },
           familyName: {
             type: "string",
-            description: "Last name"
+            description: "Last name",
           },
           emailAddresses: {
             type: "array",
@@ -95,10 +102,10 @@ export function getContactsTools(): Tool[] {
               type: "object",
               properties: {
                 value: { type: "string" },
-                type: { type: "string", enum: ["home", "work", "other"] }
+                type: { type: "string", enum: ["home", "work", "other"] },
               },
-              required: ["value"]
-            }
+              required: ["value"],
+            },
           },
           phoneNumbers: {
             type: "array",
@@ -106,10 +113,13 @@ export function getContactsTools(): Tool[] {
               type: "object",
               properties: {
                 value: { type: "string" },
-                type: { type: "string", enum: ["home", "work", "mobile", "other"] }
+                type: {
+                  type: "string",
+                  enum: ["home", "work", "mobile", "other"],
+                },
               },
-              required: ["value"]
-            }
+              required: ["value"],
+            },
           },
           organizations: {
             type: "array",
@@ -117,13 +127,13 @@ export function getContactsTools(): Tool[] {
               type: "object",
               properties: {
                 name: { type: "string" },
-                title: { type: "string" }
-              }
-            }
-          }
+                title: { type: "string" },
+              },
+            },
+          },
         },
-        required: ["givenName"]
-      }
+        required: ["givenName"],
+      },
     },
     {
       name: "contacts_update_contact",
@@ -133,15 +143,15 @@ export function getContactsTools(): Tool[] {
         properties: {
           resourceName: {
             type: "string",
-            description: "Resource name of the person to update"
+            description: "Resource name of the person to update",
           },
           givenName: {
             type: "string",
-            description: "First name"
+            description: "First name",
           },
           familyName: {
             type: "string",
-            description: "Last name"
+            description: "Last name",
           },
           emailAddresses: {
             type: "array",
@@ -149,9 +159,9 @@ export function getContactsTools(): Tool[] {
               type: "object",
               properties: {
                 value: { type: "string" },
-                type: { type: "string" }
-              }
-            }
+                type: { type: "string" },
+              },
+            },
           },
           phoneNumbers: {
             type: "array",
@@ -159,18 +169,18 @@ export function getContactsTools(): Tool[] {
               type: "object",
               properties: {
                 value: { type: "string" },
-                type: { type: "string" }
-              }
-            }
+                type: { type: "string" },
+              },
+            },
           },
           updatePersonFields: {
             type: "array",
             items: { type: "string" },
-            description: "Fields to update"
-          }
+            description: "Fields to update",
+          },
         },
-        required: ["resourceName"]
-      }
+        required: ["resourceName"],
+      },
     },
     {
       name: "contacts_delete_contact",
@@ -180,11 +190,11 @@ export function getContactsTools(): Tool[] {
         properties: {
           resourceName: {
             type: "string",
-            description: "Resource name of the person to delete"
-          }
+            description: "Resource name of the person to delete",
+          },
         },
-        required: ["resourceName"]
-      }
-    }
+        required: ["resourceName"],
+      },
+    },
   ];
 }

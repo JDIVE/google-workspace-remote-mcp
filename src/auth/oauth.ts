@@ -24,28 +24,28 @@ export class GoogleOAuth {
     const params = new URLSearchParams({
       client_id: this.config.clientId,
       redirect_uri: this.config.redirectUri,
-      response_type: 'code',
-      scope: this.config.scopes.join(' '),
-      access_type: 'offline',
-      prompt: 'consent',
-      state
+      response_type: "code",
+      scope: this.config.scopes.join(" "),
+      access_type: "offline",
+      prompt: "consent",
+      state,
     });
 
     return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
   }
 
   async exchangeCodeForTokens(code: string): Promise<TokenResponse> {
-    const response = await fetch('https://oauth2.googleapis.com/token', {
-      method: 'POST',
+    const response = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
+        "Content-Type": "application/x-www-form-urlencoded",
       },
       body: new URLSearchParams({
         code,
         client_id: this.config.clientId,
         client_secret: this.config.clientSecret,
         redirect_uri: this.config.redirectUri,
-        grant_type: 'authorization_code',
+        grant_type: "authorization_code",
       }),
     });
 
@@ -58,16 +58,16 @@ export class GoogleOAuth {
   }
 
   async refreshAccessToken(refreshToken: string): Promise<TokenResponse> {
-    const response = await fetch('https://oauth2.googleapis.com/token', {
-      method: 'POST',
+    const response = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
+        "Content-Type": "application/x-www-form-urlencoded",
       },
       body: new URLSearchParams({
         refresh_token: refreshToken,
         client_id: this.config.clientId,
         client_secret: this.config.clientSecret,
-        grant_type: 'refresh_token',
+        grant_type: "refresh_token",
       }),
     });
 

@@ -1,4 +1,4 @@
-export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+export type LogLevel = "debug" | "info" | "warn" | "error";
 
 export interface LogEntry {
   timestamp: string;
@@ -16,20 +16,20 @@ export interface LogEntry {
 }
 
 export class Logger {
-  constructor(private service = 'google-workspace-mcp') {}
+  constructor(private service = "google-workspace-mcp") {}
 
   private safeStringify(obj: any): string {
     const seen = new WeakSet();
     return JSON.stringify(obj, (key, value) => {
-      if (typeof value === 'object' && value !== null) {
-        if (seen.has(value)) return '[Circular]';
+      if (typeof value === "object" && value !== null) {
+        if (seen.has(value)) return "[Circular]";
         seen.add(value);
       }
       return value;
     });
   }
 
-  private write(level: LogLevel, entry: Omit<LogEntry, 'timestamp' | 'level'>) {
+  private write(level: LogLevel, entry: Omit<LogEntry, "timestamp" | "level">) {
     const log: LogEntry = {
       timestamp: new Date().toISOString(),
       level,
@@ -38,19 +38,19 @@ export class Logger {
     console.log(this.safeStringify(log));
   }
 
-  debug(entry: Omit<LogEntry, 'timestamp' | 'level'>) {
-    this.write('debug', entry);
+  debug(entry: Omit<LogEntry, "timestamp" | "level">) {
+    this.write("debug", entry);
   }
 
-  info(entry: Omit<LogEntry, 'timestamp' | 'level'>) {
-    this.write('info', entry);
+  info(entry: Omit<LogEntry, "timestamp" | "level">) {
+    this.write("info", entry);
   }
 
-  warn(entry: Omit<LogEntry, 'timestamp' | 'level'>) {
-    this.write('warn', entry);
+  warn(entry: Omit<LogEntry, "timestamp" | "level">) {
+    this.write("warn", entry);
   }
 
-  error(entry: Omit<LogEntry, 'timestamp' | 'level'>) {
-    this.write('error', entry);
+  error(entry: Omit<LogEntry, "timestamp" | "level">) {
+    this.write("error", entry);
   }
 }

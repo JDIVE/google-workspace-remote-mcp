@@ -15,12 +15,12 @@ export class SSETransport {
 
   async sendError(error: any): Promise<void> {
     await this.send({
-      jsonrpc: '2.0',
+      jsonrpc: "2.0",
       error: {
         code: error.code || -32603,
-        message: error.message || 'Internal error',
-        data: error.data
-      }
+        message: error.message || "Internal error",
+        data: error.data,
+      },
     });
   }
 
@@ -31,11 +31,11 @@ export class SSETransport {
   getResponse(headers: Record<string, string> = {}): Response {
     return new Response(this.stream.readable, {
       headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-        ...headers
-      }
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+        ...headers,
+      },
     });
   }
 }

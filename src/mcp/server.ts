@@ -1,33 +1,33 @@
-import { SSETransport } from './transport';
-import { MCPRequest, MCPResponse, MCPError, Tool, ServerInfo } from './types';
-import { getGmailTools } from '../tools/gmail';
-import { getCalendarTools } from '../tools/calendar';
-import { getDriveTools } from '../tools/drive';
-import { getContactsTools } from '../tools/contacts';
-import { handleToolCall, ToolContext } from '../tools/handlers';
-import { TokenManager } from '../auth/tokens';
-import { handleGoogleAPIError } from '../utils/errors';
-import { Logger } from '../utils/logger';
-import { Env } from '../index';
+import { SSETransport } from "./transport";
+import { MCPRequest, MCPResponse, MCPError, Tool, ServerInfo } from "./types";
+import { getGmailTools } from "../tools/gmail";
+import { getCalendarTools } from "../tools/calendar";
+import { getDriveTools } from "../tools/drive";
+import { getContactsTools } from "../tools/contacts";
+import { handleToolCall, ToolContext } from "../tools/handlers";
+import { TokenManager } from "../auth/tokens";
+import { handleGoogleAPIError } from "../utils/errors";
+import { Logger } from "../utils/logger";
+import { Env } from "../index";
 
 export class MCPServer {
   private tools: Map<string, Tool> = new Map();
   private tokenManager: TokenManager;
   private serverInfo: ServerInfo = {
-    name: 'google-workspace-mcp',
-    version: '1.0.0',
+    name: "google-workspace-mcp",
+    version: "1.0.0",
     capabilities: {
       tools: true,
       resources: false,
-      prompts: false
-    }
+      prompts: false,
+    },
   };
 
   constructor(
     private transport: SSETransport,
     private env: Env,
     private userId: string,
-    private logger: Logger
+    private logger: Logger,
   ) {
     this.tokenManager = new TokenManager(env);
   }
@@ -38,18 +38,18 @@ export class MCPServer {
       ...getGmailTools(),
       ...getCalendarTools(),
       ...getDriveTools(),
-      ...getContactsTools()
+      ...getContactsTools(),
     ];
 
-    allTools.forEach(tool => {
+    allTools.forEach((tool) => {
       this.tools.set(tool.name, tool);
     });
 
     this.logger.info({
       requestId: crypto.randomUUID(),
       userId: this.userId,
-      method: 'initialize',
-      metadata: { toolCount: this.tools.size }
+      method: "initialize",
+      metadata: { toolCount: this.tools.size },
     });
   }
 
@@ -58,66 +58,67 @@ export class MCPServer {
       let response: MCPResponse;
 
       switch (request.method) {
-        case 'initialize':
+        case "initialize":
           response = await this.handleInitialize(request);
           break;
-        
-        case 'tools/list':
+
+        case "tools/list":
           response = await this.handleToolsList(request);
           break;
-        
-        case 'tools/call':
+
+        case "tools/call":
           response = await this.handleToolCall(request);
           break;
-        
+
         default:
           throw new Error(`Unsupported method: ${request.method}`);
       }
 
       await this.transport.send(response);
     } catch (error) {
-      const mcpError = error instanceof Error 
-        ? { code: -32603, message: error.message } 
-        : { code: -32603, message: 'Internal error' };
-      
+      const mcpError =
+        error instanceof Error
+          ? { code: -32603, message: error.message }
+          : { code: -32603, message: "Internal error" };
+
       await this.transport.send({
-        jsonrpc: '2.0',
+        jsonrpc: "2.0",
         error: mcpError,
-        id: request.id
+        id: request.id,
       });
     }
   }
 
   private async handleInitialize(request: MCPRequest): Promise<MCPResponse> {
     return {
-      jsonrpc: '2.0',
+      jsonrpc: "2.0",
       result: {
-        protocolVersion: '1.0',
-        serverInfo: this.serverInfo
+        protocolVersion: "1.0",
+        serverInfo: this.serverInfo,
       },
-      id: request.id
+      id: request.id,
     };
   }
 
   private async handleToolsList(request: MCPRequest): Promise<MCPResponse> {
     const tools = Array.from(this.tools.values());
-    
+
     return {
-      jsonrpc: '2.0',
+      jsonrpc: "2.0",
       result: { tools },
-      id: request.id
+      id: request.id,
     };
   }
 
   private async handleToolCall(request: MCPRequest): Promise<MCPResponse> {
     const { name, arguments: args } = request.params;
-    
+
     if (!this.tools.has(name)) {
       throw new Error(`Unknown tool: ${name}`);
     }
 
     const tool = this.tools.get(name)!;
-    
+
     // Validate parameters
     const validation = this.validateParameters(args, tool.parameters);
     if (!validation.valid) {
@@ -131,16 +132,16 @@ export class MCPServer {
         userId: this.userId,
         tokenManager: this.tokenManager,
         logger: this.logger,
-        requestId: crypto.randomUUID()
+        requestId: crypto.randomUUID(),
       };
 
       // Execute tool
       const result = await handleToolCall(name, args, context);
-      
+
       return {
-        jsonrpc: '2.0',
+        jsonrpc: "2.0",
         result,
-        id: request.id
+        id: request.id,
       };
     } catch (error: any) {
       // Handle Google API errors specially
@@ -152,7 +153,10 @@ export class MCPServer {
     }
   }
 
-  private validateParameters(params: any, schema: any): { valid: boolean; error?: string } {
+  private validateParameters(
+    params: any,
+    schema: any,
+  ): { valid: boolean; error?: string } {
     if (!schema || !schema.properties) {
       return { valid: true };
     }
@@ -161,7 +165,10 @@ export class MCPServer {
     if (schema.required) {
       for (const required of schema.required) {
         if (params[required] === undefined) {
-          return { valid: false, error: `Missing required parameter: ${required}` };
+          return {
+            valid: false,
+            error: `Missing required parameter: ${required}`,
+          };
         }
       }
     }
@@ -174,10 +181,13 @@ export class MCPServer {
       }
 
       const type = (propSchema as any).type;
-      const actualType = Array.isArray(value) ? 'array' : typeof value;
-      
+      const actualType = Array.isArray(value) ? "array" : typeof value;
+
       if (type && type !== actualType) {
-        return { valid: false, error: `Invalid type for ${key}: expected ${type}, got ${actualType}` };
+        return {
+          valid: false,
+          error: `Invalid type for ${key}: expected ${type}, got ${actualType}`,
+        };
       }
     }
 

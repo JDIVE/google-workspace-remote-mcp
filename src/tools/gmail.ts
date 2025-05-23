@@ -1,4 +1,4 @@
-import { Tool } from '../mcp/types';
+import { Tool } from "../mcp/types";
 
 export function getGmailTools(): Tool[] {
   return [
@@ -10,21 +10,24 @@ export function getGmailTools(): Tool[] {
         properties: {
           query: {
             type: "string",
-            description: "Gmail search query (e.g., 'from:example@gmail.com', 'subject:invoice', 'has:attachment')"
+            description:
+              "Gmail search query (e.g., 'from:example@gmail.com', 'subject:invoice', 'has:attachment')",
           },
           maxResults: {
             type: "number",
-            description: "Maximum number of results to return (default: 10, max: 100)",
+            description:
+              "Maximum number of results to return (default: 10, max: 100)",
             minimum: 1,
-            maximum: 100
+            maximum: 100,
           },
           includeSpamTrash: {
             type: "boolean",
-            description: "Include messages from SPAM and TRASH (default: false)"
-          }
+            description:
+              "Include messages from SPAM and TRASH (default: false)",
+          },
         },
-        required: ["query"]
-      }
+        required: ["query"],
+      },
     },
     {
       name: "gmail_get_message",
@@ -34,16 +37,16 @@ export function getGmailTools(): Tool[] {
         properties: {
           messageId: {
             type: "string",
-            description: "The ID of the message to retrieve"
+            description: "The ID of the message to retrieve",
           },
           format: {
             type: "string",
             enum: ["full", "metadata", "minimal"],
-            description: "The format to return the message in (default: full)"
-          }
+            description: "The format to return the message in (default: full)",
+          },
         },
-        required: ["messageId"]
-      }
+        required: ["messageId"],
+      },
     },
     {
       name: "gmail_send_message",
@@ -54,25 +57,25 @@ export function getGmailTools(): Tool[] {
           to: {
             type: "array",
             items: { type: "string" },
-            description: "Recipient email addresses"
+            description: "Recipient email addresses",
           },
           subject: {
             type: "string",
-            description: "Email subject"
+            description: "Email subject",
           },
           body: {
             type: "string",
-            description: "Email body (plain text or HTML)"
+            description: "Email body (plain text or HTML)",
           },
           cc: {
             type: "array",
             items: { type: "string" },
-            description: "CC recipients"
+            description: "CC recipients",
           },
           bcc: {
             type: "array",
             items: { type: "string" },
-            description: "BCC recipients"
+            description: "BCC recipients",
           },
           attachments: {
             type: "array",
@@ -81,14 +84,17 @@ export function getGmailTools(): Tool[] {
               properties: {
                 filename: { type: "string" },
                 mimeType: { type: "string" },
-                data: { type: "string", description: "Base64 encoded file data" }
+                data: {
+                  type: "string",
+                  description: "Base64 encoded file data",
+                },
               },
-              required: ["filename", "mimeType", "data"]
-            }
-          }
+              required: ["filename", "mimeType", "data"],
+            },
+          },
         },
-        required: ["to", "subject", "body"]
-      }
+        required: ["to", "subject", "body"],
+      },
     },
     {
       name: "gmail_modify_labels",
@@ -98,21 +104,21 @@ export function getGmailTools(): Tool[] {
         properties: {
           messageId: {
             type: "string",
-            description: "The ID of the message to modify"
+            description: "The ID of the message to modify",
           },
           addLabels: {
             type: "array",
             items: { type: "string" },
-            description: "Label IDs to add"
+            description: "Label IDs to add",
           },
           removeLabels: {
             type: "array",
             items: { type: "string" },
-            description: "Label IDs to remove"
-          }
+            description: "Label IDs to remove",
+          },
         },
-        required: ["messageId"]
-      }
+        required: ["messageId"],
+      },
     },
     {
       name: "gmail_trash_message",
@@ -122,11 +128,11 @@ export function getGmailTools(): Tool[] {
         properties: {
           messageId: {
             type: "string",
-            description: "The ID of the message to trash"
-          }
+            description: "The ID of the message to trash",
+          },
         },
-        required: ["messageId"]
-      }
+        required: ["messageId"],
+      },
     },
     {
       name: "gmail_untrash_message",
@@ -136,11 +142,11 @@ export function getGmailTools(): Tool[] {
         properties: {
           messageId: {
             type: "string",
-            description: "The ID of the message to untrash"
-          }
+            description: "The ID of the message to untrash",
+          },
         },
-        required: ["messageId"]
-      }
+        required: ["messageId"],
+      },
     },
     {
       name: "gmail_create_draft",
@@ -151,37 +157,37 @@ export function getGmailTools(): Tool[] {
           to: {
             type: "array",
             items: { type: "string" },
-            description: "Recipient email addresses"
+            description: "Recipient email addresses",
           },
           subject: {
             type: "string",
-            description: "Email subject"
+            description: "Email subject",
           },
           body: {
             type: "string",
-            description: "Email body (plain text or HTML)"
+            description: "Email body (plain text or HTML)",
           },
           cc: {
             type: "array",
             items: { type: "string" },
-            description: "CC recipients"
+            description: "CC recipients",
           },
           bcc: {
             type: "array",
             items: { type: "string" },
-            description: "BCC recipients"
-          }
+            description: "BCC recipients",
+          },
         },
-        required: ["to", "subject", "body"]
-      }
+        required: ["to", "subject", "body"],
+      },
     },
     {
       name: "gmail_list_labels",
       description: "List all labels in the mailbox",
       parameters: {
         type: "object",
-        properties: {}
-      }
-    }
+        properties: {},
+      },
+    },
   ];
 }

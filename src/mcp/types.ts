@@ -1,12 +1,12 @@
 export interface MCPRequest {
-  jsonrpc: '2.0';
+  jsonrpc: "2.0";
   method: string;
   params?: any;
   id?: string | number;
 }
 
 export interface MCPResponse {
-  jsonrpc: '2.0';
+  jsonrpc: "2.0";
   result?: any;
   error?: MCPError;
   id?: string | number;
@@ -22,7 +22,7 @@ export interface Tool {
   name: string;
   description: string;
   parameters: {
-    type: 'object';
+    type: "object";
     properties: Record<string, any>;
     required?: string[];
   };

@@ -1,4 +1,4 @@
-import { Tool } from '../mcp/types';
+import { Tool } from "../mcp/types";
 
 export function getDriveTools(): Tool[] {
   return [
@@ -10,24 +10,25 @@ export function getDriveTools(): Tool[] {
         properties: {
           q: {
             type: "string",
-            description: "Search query (e.g., \"name contains 'report'\", \"mimeType='application/pdf'\")"
+            description:
+              "Search query (e.g., \"name contains 'report'\", \"mimeType='application/pdf'\")",
           },
           pageSize: {
             type: "number",
             description: "Number of files to return (default: 10, max: 100)",
             minimum: 1,
-            maximum: 100
+            maximum: 100,
           },
           orderBy: {
             type: "string",
-            description: "Sort order (e.g., 'name', 'modifiedTime desc')"
+            description: "Sort order (e.g., 'name', 'modifiedTime desc')",
           },
           fields: {
             type: "string",
-            description: "Specific fields to include in the response"
-          }
-        }
-      }
+            description: "Specific fields to include in the response",
+          },
+        },
+      },
     },
     {
       name: "drive_get_file",
@@ -37,15 +38,15 @@ export function getDriveTools(): Tool[] {
         properties: {
           fileId: {
             type: "string",
-            description: "The ID of the file"
+            description: "The ID of the file",
           },
           fields: {
             type: "string",
-            description: "Specific fields to include in the response"
-          }
+            description: "Specific fields to include in the response",
+          },
         },
-        required: ["fileId"]
-      }
+        required: ["fileId"],
+      },
     },
     {
       name: "drive_download_file",
@@ -55,15 +56,15 @@ export function getDriveTools(): Tool[] {
         properties: {
           fileId: {
             type: "string",
-            description: "The ID of the file to download"
+            description: "The ID of the file to download",
           },
           mimeType: {
             type: "string",
-            description: "Export MIME type for Google Workspace files"
-          }
+            description: "Export MIME type for Google Workspace files",
+          },
         },
-        required: ["fileId"]
-      }
+        required: ["fileId"],
+      },
     },
     {
       name: "drive_upload_file",
@@ -73,28 +74,28 @@ export function getDriveTools(): Tool[] {
         properties: {
           name: {
             type: "string",
-            description: "File name"
+            description: "File name",
           },
           mimeType: {
             type: "string",
-            description: "MIME type of the file"
+            description: "MIME type of the file",
           },
           content: {
             type: "string",
-            description: "Base64 encoded file content"
+            description: "Base64 encoded file content",
           },
           parents: {
             type: "array",
             items: { type: "string" },
-            description: "Parent folder IDs"
+            description: "Parent folder IDs",
           },
           description: {
             type: "string",
-            description: "File description"
-          }
+            description: "File description",
+          },
         },
-        required: ["name", "content"]
-      }
+        required: ["name", "content"],
+      },
     },
     {
       name: "drive_update_file",
@@ -104,33 +105,33 @@ export function getDriveTools(): Tool[] {
         properties: {
           fileId: {
             type: "string",
-            description: "The ID of the file to update"
+            description: "The ID of the file to update",
           },
           name: {
             type: "string",
-            description: "New file name"
+            description: "New file name",
           },
           content: {
             type: "string",
-            description: "Base64 encoded new file content"
+            description: "Base64 encoded new file content",
           },
           mimeType: {
             type: "string",
-            description: "MIME type of the new content"
+            description: "MIME type of the new content",
           },
           addParents: {
             type: "array",
             items: { type: "string" },
-            description: "Parent folder IDs to add"
+            description: "Parent folder IDs to add",
           },
           removeParents: {
             type: "array",
             items: { type: "string" },
-            description: "Parent folder IDs to remove"
-          }
+            description: "Parent folder IDs to remove",
+          },
         },
-        required: ["fileId"]
-      }
+        required: ["fileId"],
+      },
     },
     {
       name: "drive_delete_file",
@@ -140,15 +141,15 @@ export function getDriveTools(): Tool[] {
         properties: {
           fileId: {
             type: "string",
-            description: "The ID of the file to delete"
+            description: "The ID of the file to delete",
           },
           permanent: {
             type: "boolean",
-            description: "Permanently delete instead of moving to trash"
-          }
+            description: "Permanently delete instead of moving to trash",
+          },
         },
-        required: ["fileId"]
-      }
+        required: ["fileId"],
+      },
     },
     {
       name: "drive_create_folder",
@@ -158,20 +159,20 @@ export function getDriveTools(): Tool[] {
         properties: {
           name: {
             type: "string",
-            description: "Folder name"
+            description: "Folder name",
           },
           parents: {
             type: "array",
             items: { type: "string" },
-            description: "Parent folder IDs"
+            description: "Parent folder IDs",
           },
           description: {
             type: "string",
-            description: "Folder description"
-          }
+            description: "Folder description",
+          },
         },
-        required: ["name"]
-      }
+        required: ["name"],
+      },
     },
     {
       name: "drive_share_file",
@@ -181,33 +182,33 @@ export function getDriveTools(): Tool[] {
         properties: {
           fileId: {
             type: "string",
-            description: "The ID of the file to share"
+            description: "The ID of the file to share",
           },
           role: {
             type: "string",
             enum: ["reader", "writer", "commenter"],
-            description: "Permission role"
+            description: "Permission role",
           },
           type: {
             type: "string",
             enum: ["user", "group", "domain", "anyone"],
-            description: "Permission type"
+            description: "Permission type",
           },
           emailAddress: {
             type: "string",
-            description: "Email address for user or group permissions"
+            description: "Email address for user or group permissions",
           },
           domain: {
             type: "string",
-            description: "Domain for domain-wide permissions"
+            description: "Domain for domain-wide permissions",
           },
           sendNotificationEmail: {
             type: "boolean",
-            description: "Send notification email to the user"
-          }
+            description: "Send notification email to the user",
+          },
         },
-        required: ["fileId", "role", "type"]
-      }
-    }
+        required: ["fileId", "role", "type"],
+      },
+    },
   ];
 }
