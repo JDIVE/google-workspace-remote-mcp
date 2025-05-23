@@ -142,7 +142,7 @@ import { MCPRequest, MCPResponse, Tool } from './types';
 import { getGmailTools } from '../tools/gmail';
 import { getCalendarTools } from '../tools/calendar';
 import { getDriveTools } from '../tools/drive';
-import { getContactsTools } from '../tools/contacts';
+import { getPeopleTools } from '../tools/people';
 
 export class MCPServer {
   private transport: SSETransport;
@@ -160,7 +160,7 @@ export class MCPServer {
       ...getGmailTools(),
       ...getCalendarTools(),
       ...getDriveTools(),
-      ...getContactsTools()
+      ...getPeopleTools()
     ];
 
     allTools.forEach(tool => {
@@ -683,10 +683,10 @@ export function getDriveTools(): Tool[] {
 }
 ```
 
-### Step 4.4: Contacts Tools
-Create `src/tools/contacts.ts`:
+### Step 4.4: People Tools
+Create `src/tools/people.ts`:
 ```typescript
-export function getContactsTools(): Tool[] {
+export function getPeopleTools(): Tool[] {
   return [
     {
       name: "contacts_list",

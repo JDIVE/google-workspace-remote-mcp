@@ -862,15 +862,15 @@ Update sharing permissions for a file.
 }
 ```
 
-## Contacts (People) Tools
+## People Tools
 
 ### contacts_list_people
-List contacts from Google Contacts.
+List contacts from the Google People API.
 
 ```typescript
 {
   name: "contacts_list_people",
-  description: "List contacts from Google Contacts",
+  description: "List contacts from the Google People API",
   parameters: {
     type: "object",
     properties: {
@@ -911,12 +911,12 @@ List contacts from Google Contacts.
 ```
 
 ### contacts_get_person
-Get details for a specific contact.
+Get details for a specific person.
 
 ```typescript
 {
   name: "contacts_get_person",
-  description: "Get details for a specific contact",
+  description: "Get details for a specific person",
   parameters: {
     type: "object",
     properties: {
@@ -936,12 +936,12 @@ Get details for a specific contact.
 ```
 
 ### contacts_search_people
-Search for contacts.
+Search for people.
 
 ```typescript
 {
   name: "contacts_search_people",
-  description: "Search for contacts by name, email, or phone",
+  description: "Search for people by name, email, or phone",
   parameters: {
     type: "object",
     properties: {
