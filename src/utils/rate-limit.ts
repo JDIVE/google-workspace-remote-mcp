@@ -9,7 +9,7 @@ export class RateLimiter {
 
     // Get current count
     const countStr = await this.kvNamespace.get(key);
-    const currentCount = countStr ? parseInt(countStr, 10) : 0;
+    const currentCount = countStr ? parseInt(countStr, 10) || 0 : 0;
 
     // Check if limit exceeded
     if (currentCount >= (this.constructor as typeof RateLimiter).MAX_REQUESTS) {
@@ -28,7 +28,7 @@ export class RateLimiter {
     const key = `rate:${userId}`;
 
     const countStr = await this.kvNamespace.get(key);
-    const currentCount = countStr ? parseInt(countStr, 10) : 0;
+    const currentCount = countStr ? parseInt(countStr, 10) || 0 : 0;
 
     return Math.max(
       0,
