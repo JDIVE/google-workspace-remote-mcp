@@ -206,6 +206,33 @@ curl -X POST https://your-worker-preview.workers.dev/mcp \
    wrangler kv:key get --namespace-id=YOUR_PREVIEW_NAMESPACE_ID "tokens:test-user"
    ```
 
+### 5.4 Configure Staging Environment
+Add a dedicated section in `wrangler.toml` for staging so secrets and
+bindings don't mix with production:
+
+```toml
+[env.preview]
+route = "staging-mcp.yourdomain.com/*"
+kv_namespaces = [
+  { binding = "OAUTH_TOKENS", preview_id = "your-oauth-tokens-preview-id" },
+  { binding = "RATE_LIMITS",  preview_id = "your-rate-limits-preview-id" }
+]
+```
+
+Store staging secrets separately:
+
+```bash
+wrangler secret put GOOGLE_CLIENT_ID --env preview
+wrangler secret put GOOGLE_CLIENT_SECRET --env preview
+wrangler secret put ENCRYPTION_KEY --env preview
+```
+
+Deploy to staging after configuring the environment:
+
+```bash
+wrangler deploy --env preview
+```
+
 ## Step 6: Deploy to Production
 
 ### 6.1 Final Build
@@ -237,6 +264,25 @@ wrangler deployments list
 # Tail logs
 wrangler tail
 ```
+
+### 6.4 Blue/Green Deployment and Rollback
+Use two production workers (`-blue` and `-green`) to deploy with zero downtime:
+
+1. Deploy the new version to the idle color:
+   ```bash
+   wrangler deploy --name google-workspace-mcp-green
+   ```
+2. Smoke test the green deployment:
+   ```bash
+   curl https://google-workspace-mcp-green.workers.dev/health
+   ```
+3. Switch the route in `wrangler.toml` or Cloudflare dashboard to point to the
+   green worker.
+4. If problems occur, roll back by switching the route back or by using:
+   ```bash
+   wrangler rollback <previous-deployment-id> --name google-workspace-mcp-green
+   ```
+5. Once stable, remove the old blue deployment or keep it for the next cycle.
 
 ## Step 7: Post-Deployment Configuration
 
