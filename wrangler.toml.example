@@ -1,0 +1,25 @@
+# Example Cloudflare Worker configuration
+name = "google-workspace-mcp"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+[vars]
+# Comma separated list of allowed CORS origins
+ALLOWED_ORIGINS = "https://claude.ai,https://api.anthropic.com"
+
+[[kv_namespaces]]
+# OAuth token storage
+binding = "OAUTH_TOKENS"
+id = "your-oauth-tokens-namespace-id"
+preview_id = "your-oauth-tokens-preview-id"
+
+[[kv_namespaces]]
+# Rate limit storage
+binding = "RATE_LIMITS"
+id = "your-rate-limits-namespace-id"
+preview_id = "your-rate-limits-preview-id"
+
+[secrets]
+# GOOGLE_CLIENT_ID
+# GOOGLE_CLIENT_SECRET
+# ENCRYPTION_KEY

@@ -1,0 +1,5 @@
+# Example environment variables for local development
+GOOGLE_CLIENT_ID=your_client_id
+GOOGLE_CLIENT_SECRET=your_client_secret
+ENCRYPTION_KEY=32_char_encryption_key_for_dev
+ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173

@@ -79,7 +79,8 @@ google-workspace-remote-mcp/
 │   ├── unit/                 # Unit tests
 │   ├── integration/          # Integration tests
 │   └── fixtures/             # Test fixtures
-├── wrangler.toml             # Cloudflare configuration
+├── wrangler.toml.example     # Sample Cloudflare configuration
+├── .dev.vars.example         # Sample environment variables
 ├── package.json              # Dependencies
 ├── tsconfig.json             # TypeScript configuration
 └── vitest.config.ts          # Test configuration
@@ -99,10 +100,15 @@ google-workspace-remote-mcp/
 
 1. Clone the repository
 2. Install dependencies: `npm install`
-3. Configure Google OAuth credentials
-4. Set up Cloudflare KV namespace
-5. Deploy with Wrangler: `wrangler deploy`
-6. Configure MCP client to connect via SSE
+3. Copy the example configuration files:
+   ```bash
+   cp wrangler.toml.example wrangler.toml
+   cp .dev.vars.example .dev.vars
+   ```
+4. Configure Google OAuth credentials
+5. Set up Cloudflare KV namespace
+6. Deploy with Wrangler: `wrangler deploy`
+7. Configure MCP client to connect via SSE
 
 ## Documentation
 
