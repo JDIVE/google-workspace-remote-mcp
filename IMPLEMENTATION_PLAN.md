@@ -961,10 +961,13 @@ export function handleGoogleAPIError(error: any): MCPError {
   } else if (error.response?.status === 429) {
     return new MCPError(-32003, 'Rate limit exceeded');
   }
-  
+
   return new MCPError(-32603, 'Internal server error', error.message);
 }
 ```
+
+For practical advice on retry strategies and notifying users when tokens
+expire, see the [Error Handling Guide](./ERROR_HANDLING.md).
 
 ### Step 6.2: Validation
 Create `src/utils/validation.ts`:
@@ -1281,6 +1284,8 @@ console.log('\nSetup complete!');
 - Provide meaningful error messages to clients
 - Log errors for debugging
 - Implement retry logic for transient failures
+- Refer to the [Error Handling Guide](./ERROR_HANDLING.md) for detailed
+  strategies, including user notifications when refresh tokens expire
 
 ### 5. Security
 - Validate all input parameters
