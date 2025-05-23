@@ -68,6 +68,10 @@ Getting User settings...
 wrangler kv:namespace create "OAUTH_TOKENS"
 # Save the ID from output
 
+# Create OAuth state namespace (for CSRF protection)
+wrangler kv:namespace create "OAUTH_STATE"
+# Save the ID from output
+
 # Create rate limits namespace
 wrangler kv:namespace create "RATE_LIMITS"
 # Save the ID from output
@@ -77,6 +81,10 @@ wrangler kv:namespace create "RATE_LIMITS"
 ```bash
 # Create preview OAuth tokens namespace
 wrangler kv:namespace create "OAUTH_TOKENS" --preview
+# Save the preview_id from output
+
+# Create preview OAuth state namespace
+wrangler kv:namespace create "OAUTH_STATE" --preview
 # Save the preview_id from output
 
 # Create preview rate limits namespace
@@ -91,6 +99,11 @@ Update `wrangler.toml` with the namespace IDs:
 binding = "OAUTH_TOKENS"
 id = "your-oauth-tokens-namespace-id"
 preview_id = "your-oauth-tokens-preview-id"
+
+[[kv_namespaces]]
+binding = "OAUTH_STATE"
+id = "your-oauth-state-namespace-id"
+preview_id = "your-oauth-state-preview-id"
 
 [[kv_namespaces]]
 binding = "RATE_LIMITS"
