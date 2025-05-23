@@ -112,6 +112,7 @@ google-workspace-remote-mcp/
 - [API Design](./API_DESIGN.md) - Tool definitions and interfaces
 - [Deployment Guide](./DEPLOYMENT_GUIDE.md) - Cloudflare deployment instructions
 - [Testing Plan](./TESTING_PLAN.md) - Testing strategies and examples
+- [Error Handling Guide](./ERROR_HANDLING.md) - Dealing with API failures and notifying users
 
 ## Security Considerations
 
