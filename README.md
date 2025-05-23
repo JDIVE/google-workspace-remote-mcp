@@ -1,6 +1,6 @@
 # Google Workspace Remote MCP Server
 
-A Cloudflare Worker-based MCP (Model Context Protocol) server providing secure remote access to Google Workspace APIs including Gmail, Calendar, Drive, and Contacts.
+A Cloudflare Worker-based MCP (Model Context Protocol) server providing secure remote access to Google Workspace APIs including Gmail, Calendar, Drive, and People.
 
 ## Overview
 
@@ -43,7 +43,7 @@ This project implements a remote MCP server deployed on Cloudflare Workers that 
 - **Gmail**: Read, send, search emails; manage labels and drafts
 - **Calendar**: Create, read, update events; manage attendees
 - **Drive**: Upload, download, search files; manage permissions
-- **Contacts**: Read and manage contact information
+- **People**: Read and manage contact information
 
 ### 4. Security Features
 - Encrypted token storage
@@ -70,7 +70,7 @@ google-workspace-remote-mcp/
 │   │   ├── gmail.ts          # Gmail tool implementations
 │   │   ├── calendar.ts       # Calendar tool implementations
 │   │   ├── drive.ts          # Drive tool implementations
-│   │   └── contacts.ts       # Contacts tool implementations
+│   │   └── people.ts         # People tool implementations
 │   └── utils/
 │       ├── errors.ts         # Error handling utilities
 │       ├── validation.ts     # Input validation

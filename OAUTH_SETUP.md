@@ -97,7 +97,7 @@ https://www.googleapis.com/auth/drive.file
 https://www.googleapis.com/auth/drive.metadata
 ```
 
-#### Contacts Scopes
+#### People Scopes
 ```
 https://www.googleapis.com/auth/contacts.readonly
 https://www.googleapis.com/auth/directory.readonly
