@@ -88,7 +88,7 @@ This is a Cloudflare Worker-based MCP (Model Context Protocol) server that provi
 Required secrets:
 - `GOOGLE_CLIENT_ID`: OAuth client ID
 - `GOOGLE_CLIENT_SECRET`: OAuth client secret
-- `ENCRYPTION_KEY`: 32-character key for token encryption
+- `ENCRYPTION_KEY`: 32-byte key for token encryption (base64 encoded)
 - `JWT_SECRET`: Secret for JWT signing/validation
 - `ALLOWED_ORIGINS`: Comma-separated list of allowed CORS origins
 

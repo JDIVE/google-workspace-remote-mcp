@@ -3,7 +3,7 @@ import { SSETransport } from "./mcp/transport";
 import { MCPRequest } from "./mcp/types";
 import { GoogleOAuth } from "./auth/oauth";
 import { TokenStorage } from "./auth/storage";
-import { validateRequest } from "./utils/validation";
+import { validateRequest, JWTError } from "./utils/validation";
 import { createJWT } from "./utils/jwt";
 import { RateLimiter } from "./utils/rate-limit";
 import { Logger } from "./utils/logger";
@@ -59,17 +59,17 @@ export default {
 
       // OAuth callback handler
       if (url.pathname === "/oauth/callback") {
-        return handleOAuthCallback(request, env, requestId, logger);
+        return handleOAuthCallback(request, env, securityHeaders, requestId, logger);
       }
 
       // OAuth authorization endpoint
       if (url.pathname === "/oauth/authorize") {
-        return handleOAuthAuthorize(request, env, requestId, logger);
+        return handleOAuthAuthorize(request, env, securityHeaders, requestId, logger);
       }
 
       // MCP SSE endpoint
       if (url.pathname === "/mcp" && request.method === "POST") {
-        return handleMCPRequest(request, env, corsHeaders, requestId, logger);
+        return handleMCPRequest(request, env, corsHeaders, securityHeaders, requestId, logger);
       }
 
       // Health check
@@ -102,6 +102,7 @@ export default {
 async function handleOAuthAuthorize(
   request: Request,
   env: Env,
+  securityHeaders: Record<string, string>,
   requestId: string,
   logger: Logger,
 ): Promise<Response> {
@@ -110,7 +111,10 @@ async function handleOAuthAuthorize(
   const clientIp = request.headers.get("CF-Connecting-IP") || "unknown";
 
   if (!userId) {
-    return new Response("Missing user_id parameter", { status: 400 });
+    return new Response("Missing user_id parameter", {
+      status: 400,
+      headers: securityHeaders,
+    });
   }
 
   const state = await createState(env, userId, clientIp);
@@ -120,7 +124,10 @@ async function handleOAuthAuthorize(
       method: "handleOAuthAuthorize",
       metadata: { reason: "Rate limit exceeded for state generation" },
     });
-    return new Response("Too many authorization attempts", { status: 429 });
+    return new Response("Too many authorization attempts", {
+      status: 429,
+      headers: securityHeaders,
+    });
   }
 
   const oauth = new GoogleOAuth({
@@ -144,12 +151,16 @@ async function handleOAuthAuthorize(
     metadata: { redirecting: true },
   });
 
-  return Response.redirect(authUrl, 302);
+  return new Response(null, {
+    status: 302,
+    headers: { ...securityHeaders, Location: authUrl },
+  });
 }
 
 async function handleOAuthCallback(
   request: Request,
   env: Env,
+  securityHeaders: Record<string, string>,
   requestId: string,
   logger: Logger,
 ): Promise<Response> {
@@ -164,7 +175,10 @@ async function handleOAuthCallback(
       method: "handleOAuthCallback",
       metadata: { hasCode: !!code, hasValidState: !!userId },
     });
-    return new Response("Invalid state parameter", { status: 400 });
+    return new Response("Invalid state parameter", {
+      status: 400,
+      headers: securityHeaders,
+    });
   }
 
   const oauth = new GoogleOAuth({
@@ -193,7 +207,7 @@ async function handleOAuthCallback(
     const jwt = await createJWT(userId, env.JWT_SECRET, 3600);
 
     return new Response(JSON.stringify({ token: jwt }), {
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...securityHeaders },
     });
   } catch (error) {
     logger.error({
@@ -207,7 +221,10 @@ async function handleOAuthCallback(
       },
     });
 
-    return new Response("Authorization failed", { status: 500 });
+    return new Response("Authorization failed", {
+      status: 500,
+      headers: securityHeaders,
+    });
   }
 }
 
@@ -215,41 +232,129 @@ async function handleMCPRequest(
   request: Request,
   env: Env,
   corsHeaders: Record<string, string>,
+  securityHeaders: Record<string, string>,
   requestId: string,
   logger: Logger,
 ): Promise<Response> {
   const startTime = Date.now();
 
-  // Validate authorization
-  const authHeader = request.headers.get("Authorization");
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return new Response("Unauthorized", { status: 401, headers: corsHeaders });
+  // Parse request body first to check method
+  let body: MCPRequest;
+  try {
+    body = (await request.json()) as MCPRequest;
+  } catch {
+    logger.error({
+      requestId,
+      method: "handleMCPRequest",
+      error: {
+        code: "INVALID_JSON",
+        message: "Failed to parse request body as JSON",
+      },
+    });
+
+    return new Response("Invalid JSON in request body", {
+      status: 400,
+      headers: { ...securityHeaders, ...corsHeaders },
+    });
   }
 
-  try {
-    const userId = await validateRequest(authHeader, env.JWT_SECRET);
-    if (!userId) {
-      return new Response("Invalid token", {
-        status: 401,
-        headers: corsHeaders,
-      });
+  // Allow unauthenticated access for initialize and tools/list
+  const authHeader = request.headers.get("Authorization");
+  const isAuthRequired = body.method !== "initialize" && body.method !== "tools/list";
+  
+  let userId: string | null = null;
+  
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    try {
+      userId = await validateRequest(authHeader, env.JWT_SECRET);
+    } catch (error) {
+      // Handle JWT validation errors specifically
+      if (error instanceof JWTError) {
+        logger.warn({
+          requestId,
+          method: "handleMCPRequest",
+          error: {
+            code: "JWT_VALIDATION_FAILED",
+            message: error.message,
+          },
+        });
+        
+        return new Response("Invalid or expired token", { 
+          status: 401, 
+          headers: { ...securityHeaders, ...corsHeaders }
+        });
+      }
+      // Re-throw other errors
+      throw error;
     }
+  }
 
-    // Rate limiting
+  // For methods that require auth, check if we have valid auth
+  if (isAuthRequired && !userId) {
+    // Rate limiting for unauthenticated requests
     const rateLimiter = new RateLimiter(env.RATE_LIMITS);
-    const allowed = await rateLimiter.checkLimit(userId);
-
+    const clientIp = request.headers.get("CF-Connecting-IP") || "unknown";
+    const allowed = await rateLimiter.checkLimit(`unauth:${clientIp}`);
+    
     if (!allowed) {
       logger.warn({
         requestId,
-        userId,
         method: "handleMCPRequest",
-        metadata: { reason: "Rate limit exceeded" },
+        metadata: { 
+          reason: "Rate limit exceeded for unauthenticated request",
+          clientIp
+        },
       });
 
       return new Response("Rate limit exceeded", {
         status: 429,
         headers: {
+          ...securityHeaders,
+          ...corsHeaders,
+          "Retry-After": "60",
+        },
+      });
+    }
+    
+    // Generate a temporary session ID for unauthenticated users
+    const sessionId = crypto.randomUUID();
+    const transport = new SSETransport();
+    const server = new MCPServer(transport, env, sessionId, logger, true, request.url); // true = unauthenticated mode
+    await server.initialize();
+    await server.handleRequest(body);
+    
+    return transport.getResponse({
+      ...securityHeaders,
+      ...corsHeaders,
+    });
+  }
+
+  // For authenticated requests or allowed unauthenticated methods
+  const effectiveUserId = userId || crypto.randomUUID();
+  
+  try {
+    // Rate limiting for all requests
+    const rateLimiter = new RateLimiter(env.RATE_LIMITS);
+    // For unauthenticated requests, use IP address as identifier
+    const rateLimitKey = userId || request.headers.get("CF-Connecting-IP") || "unknown";
+    const allowed = await rateLimiter.checkLimit(rateLimitKey);
+
+    if (!allowed) {
+      logger.warn({
+        requestId,
+        userId: effectiveUserId,
+        method: "handleMCPRequest",
+        metadata: { 
+          reason: "Rate limit exceeded",
+          authenticated: !!userId,
+          rateLimitKey
+        },
+      });
+
+      return new Response("Rate limit exceeded", {
+        status: 429,
+        headers: {
+          ...securityHeaders,
           ...corsHeaders,
           "Retry-After": "60",
         },
@@ -258,55 +363,30 @@ async function handleMCPRequest(
 
     // Create SSE transport
     const transport = new SSETransport();
-    const server = new MCPServer(transport, env, userId, logger);
+    const server = new MCPServer(transport, env, effectiveUserId, logger, !userId, request.url);
 
     // Initialize server
     await server.initialize();
 
     // Process request
-    let body: MCPRequest;
-    try {
-      body = (await request.json()) as MCPRequest;
-    } catch {
-      logger.error({
-        requestId,
-        userId,
-        method: "handleMCPRequest",
-        error: {
-          code: "INVALID_JSON",
-          message: "Failed to parse request body as JSON",
-        },
-      });
-
-      return new Response("Invalid JSON in request body", {
-        status: 400,
-        headers: corsHeaders,
-      });
-    }
-
     await server.handleRequest(body);
 
     logger.info({
       requestId,
-      userId,
+      userId: effectiveUserId,
       method: "handleMCPRequest",
       duration: Date.now() - startTime,
       metadata: {
         method: body.method,
         success: true,
+        authenticated: !!userId,
       },
     });
 
-    // Include security headers in SSE response
-    const sseHeaders = {
-      "X-Content-Type-Options": "nosniff",
-      "X-Frame-Options": "DENY",
-      "X-XSS-Protection": "1; mode=block",
-      "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+    return transport.getResponse({
+      ...securityHeaders,
       ...corsHeaders,
-    };
-
-    return transport.getResponse(sseHeaders);
+    });
   } catch (error) {
     logger.error({
       requestId,
@@ -321,7 +401,7 @@ async function handleMCPRequest(
 
     return new Response("Internal server error", {
       status: 500,
-      headers: corsHeaders,
+      headers: { ...securityHeaders, ...corsHeaders },
     });
   }
 }

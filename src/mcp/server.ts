@@ -28,6 +28,8 @@ export class MCPServer {
     private env: Env,
     private userId: string,
     private logger: Logger,
+    private isUnauthenticated: boolean = false,
+    private requestUrl?: string,
   ) {
     this.tokenManager = new TokenManager(env);
   }
@@ -118,6 +120,26 @@ export class MCPServer {
     }
 
     const tool = this.tools.get(name)!;
+
+    // Check if authentication is required
+    if (this.isUnauthenticated) {
+      // Generate OAuth URL using the request origin
+      const requestUrl = this.requestUrl ? new URL(this.requestUrl) : null;
+      const baseUrl = requestUrl ? `${requestUrl.protocol}//${requestUrl.host}` : 'https://your-worker.workers.dev';
+      const authUrl = new URL(`${baseUrl}/oauth/authorize`);
+      authUrl.searchParams.set('user_id', this.userId);
+      
+      return {
+        jsonrpc: "2.0",
+        result: {
+          content: [{
+            type: "text",
+            text: `🔐 Authentication required to use Google Workspace tools.\n\nPlease authenticate by visiting:\n${authUrl.toString()}\n\nOnce authenticated, the tools will be available for use.`
+          }]
+        },
+        id: request.id,
+      };
+    }
 
     // Validate parameters
     const validation = this.validateParameters(args, tool.parameters);

@@ -150,17 +150,24 @@ wrangler secret put GOOGLE_CLIENT_ID
 wrangler secret put GOOGLE_CLIENT_SECRET
 # Enter the client secret when prompted
 
-# Set encryption key (generate a secure 32-character key)
+# Set encryption key (generate a secure 32-byte key)
 wrangler secret put ENCRYPTION_KEY
-# Enter a 32-character encryption key
+# Enter a base64-encoded 32-byte encryption key
 ```
 
 ### 5.2 Generate Encryption Key
+```bash
+# Generate secure 32-byte encryption key
+openssl rand -base64 32
+```
+
+Or using Node.js:
 ```javascript
-// Generate secure encryption key
+// Generate secure 32-byte encryption key
 const crypto = require('crypto');
-const key = crypto.randomBytes(32).toString('base64').slice(0, 32);
+const key = crypto.randomBytes(32).toString('base64');
 console.log('Encryption Key:', key);
+console.log('Key length:', Buffer.from(key, 'base64').length, 'bytes');
 ```
 
 ## Step 6: OAuth Implementation Details
