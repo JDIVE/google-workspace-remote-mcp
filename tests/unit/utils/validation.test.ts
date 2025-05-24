@@ -8,7 +8,7 @@ import {
 } from '../../../src/utils/validation';
 
 describe('JWT Validation', () => {
-  const SECRET = 'test-secret-key';
+  const SECRET = 'test-secret-key-that-is-at-least-32-characters-long';
   let validToken: string;
 
   beforeEach(async () => {

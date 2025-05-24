@@ -18,6 +18,7 @@ export interface Env {
   ENCRYPTION_KEY: string;
   JWT_SECRET: string;
   ALLOWED_ORIGINS: string;
+  ENVIRONMENT?: string;
 }
 
 export default {
@@ -86,7 +87,7 @@ export default {
         error: {
           code: "INTERNAL_ERROR",
           message: error instanceof Error ? error.message : "Unknown error",
-          stack: error instanceof Error ? error.stack : undefined,
+          stack: env.ENVIRONMENT === 'development' && error instanceof Error ? error.stack : undefined,
         },
       });
 

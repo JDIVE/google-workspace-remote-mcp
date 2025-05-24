@@ -3,8 +3,12 @@ export async function createJWT(
   secret: string,
   expiresInSeconds = 3600,
 ): Promise<string> {
-  if (!secret) {
-    throw new Error("JWT_SECRET not configured");
+  if (!secret || secret.length < 32) {
+    throw new Error("JWT_SECRET must be at least 32 characters");
+  }
+
+  if (expiresInSeconds <= 0 || expiresInSeconds > 86400) {
+    throw new Error("Invalid expiration time: must be between 1 second and 24 hours");
   }
 
   const header = { alg: "HS256", typ: "JWT" };

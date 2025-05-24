@@ -19,6 +19,11 @@ const KEY_LENGTH = 256;
  */
 async function deriveKey(keyString: string): Promise<CryptoKey> {
   const keyData = Uint8Array.from(atob(keyString), (c) => c.charCodeAt(0));
+  
+  if (keyData.length !== 32) {
+    throw new Error("Encryption key must be exactly 32 bytes (base64 encoded)");
+  }
+  
   return await crypto.subtle.importKey(
     "raw",
     keyData,
