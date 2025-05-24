@@ -219,19 +219,94 @@ describe('Main Handler', () => {
       });
     });
 
-    it('should reject MCP request without authorization', async () => {
+    it('should allow unauthenticated access to initialize and tools/list', async () => {
       const request = new Request('https://example.com/mcp', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({}),
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 'test',
+          method: 'initialize',
+        }),
       });
+
+      // Mock dependencies
+      const { SSETransport } = await import('../../src/mcp/transport');
+      const { MCPServer } = await import('../../src/mcp/server');
+
+      const mockTransport = {
+        getResponse: vi.fn().mockReturnValue(new Response('SSE response', {
+          headers: { 'Content-Type': 'text/event-stream' }
+        })),
+      };
+      vi.mocked(SSETransport).mockImplementation(() => mockTransport as any);
+
+      const mockServer = {
+        initialize: vi.fn().mockResolvedValue(undefined),
+        handleRequest: vi.fn().mockResolvedValue(undefined),
+      };
+      vi.mocked(MCPServer).mockImplementation(() => mockServer as any);
 
       const response = await defaultExport.fetch(request, mockEnv);
 
-      expect(response.status).toBe(401);
-      expect(await response.text()).toBe('Unauthorized');
+      expect(response.status).toBe(200);
+      expect(response.headers.get('Content-Type')).toBe('text/event-stream');
+      expect(mockServer.initialize).toHaveBeenCalled();
+      expect(mockServer.handleRequest).toHaveBeenCalledWith({
+        jsonrpc: '2.0',
+        id: 'test',
+        method: 'initialize',
+      });
+    });
+
+    it('should require authorization for tools/call', async () => {
+      const request = new Request('https://example.com/mcp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 'test',
+          method: 'tools/call',
+          params: {
+            name: 'gmail_list',
+            arguments: {}
+          }
+        }),
+      });
+
+      // Mock dependencies
+      const { SSETransport } = await import('../../src/mcp/transport');
+      const { MCPServer } = await import('../../src/mcp/server');
+
+      const mockTransport = {
+        getResponse: vi.fn().mockReturnValue(new Response('SSE response', {
+          headers: { 'Content-Type': 'text/event-stream' }
+        })),
+      };
+      vi.mocked(SSETransport).mockImplementation(() => mockTransport as any);
+
+      const mockServer = {
+        initialize: vi.fn().mockResolvedValue(undefined),
+        handleRequest: vi.fn().mockResolvedValue(undefined),
+      };
+      vi.mocked(MCPServer).mockImplementation(() => mockServer as any);
+
+      const response = await defaultExport.fetch(request, mockEnv);
+
+      expect(response.status).toBe(200); // Returns 200 with SSE stream containing auth URL
+      expect(response.headers.get('Content-Type')).toBe('text/event-stream');
+      // Verify the server was created in unauthenticated mode (5th parameter = true)
+      expect(vi.mocked(MCPServer)).toHaveBeenCalledWith(
+        expect.anything(), // transport
+        mockEnv,
+        expect.any(String), // sessionId
+        expect.anything(), // logger
+        true // isUnauthenticated
+      );
     });
 
     it('should reject MCP request when rate limited', async () => {
