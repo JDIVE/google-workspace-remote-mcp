@@ -220,80 +220,94 @@ async function handleMCPRequest(
 ): Promise<Response> {
   const startTime = Date.now();
 
-  // Validate authorization
-  const authHeader = request.headers.get("Authorization");
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return new Response("Unauthorized", { status: 401, headers: corsHeaders });
+  // Parse request body first to check method
+  let body: MCPRequest;
+  try {
+    body = (await request.json()) as MCPRequest;
+  } catch {
+    logger.error({
+      requestId,
+      method: "handleMCPRequest",
+      error: {
+        code: "INVALID_JSON",
+        message: "Failed to parse request body as JSON",
+      },
+    });
+
+    return new Response("Invalid JSON in request body", {
+      status: 400,
+      headers: corsHeaders,
+    });
   }
 
+  // Allow unauthenticated access for initialize and tools/list
+  const authHeader = request.headers.get("Authorization");
+  const isAuthRequired = body.method !== "initialize" && body.method !== "tools/list";
+  
+  let userId: string | null = null;
+  
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    userId = await validateRequest(authHeader, env.JWT_SECRET);
+  }
+
+  // For methods that require auth, check if we have valid auth
+  if (isAuthRequired && !userId) {
+    // Generate a temporary session ID for unauthenticated users
+    const sessionId = crypto.randomUUID();
+    const transport = new SSETransport();
+    const server = new MCPServer(transport, env, sessionId, logger, true); // true = unauthenticated mode
+    await server.initialize();
+    await server.handleRequest(body);
+    
+    return transport.getResponse(corsHeaders);
+  }
+
+  // For authenticated requests or allowed unauthenticated methods
+  const effectiveUserId = userId || crypto.randomUUID();
+  
   try {
-    const userId = await validateRequest(authHeader, env.JWT_SECRET);
-    if (!userId) {
-      return new Response("Invalid token", {
-        status: 401,
-        headers: corsHeaders,
-      });
-    }
+    // Rate limiting only for authenticated requests
+    if (userId) {
+      const rateLimiter = new RateLimiter(env.RATE_LIMITS);
+      const allowed = await rateLimiter.checkLimit(userId);
 
-    // Rate limiting
-    const rateLimiter = new RateLimiter(env.RATE_LIMITS);
-    const allowed = await rateLimiter.checkLimit(userId);
+      if (!allowed) {
+        logger.warn({
+          requestId,
+          userId,
+          method: "handleMCPRequest",
+          metadata: { reason: "Rate limit exceeded" },
+        });
 
-    if (!allowed) {
-      logger.warn({
-        requestId,
-        userId,
-        method: "handleMCPRequest",
-        metadata: { reason: "Rate limit exceeded" },
-      });
-
-      return new Response("Rate limit exceeded", {
-        status: 429,
-        headers: {
-          ...corsHeaders,
-          "Retry-After": "60",
-        },
-      });
+        return new Response("Rate limit exceeded", {
+          status: 429,
+          headers: {
+            ...corsHeaders,
+            "Retry-After": "60",
+          },
+        });
+      }
     }
 
     // Create SSE transport
     const transport = new SSETransport();
-    const server = new MCPServer(transport, env, userId, logger);
+    const server = new MCPServer(transport, env, effectiveUserId, logger, !userId);
 
     // Initialize server
     await server.initialize();
 
     // Process request
-    let body: MCPRequest;
-    try {
-      body = (await request.json()) as MCPRequest;
-    } catch {
-      logger.error({
-        requestId,
-        userId,
-        method: "handleMCPRequest",
-        error: {
-          code: "INVALID_JSON",
-          message: "Failed to parse request body as JSON",
-        },
-      });
-
-      return new Response("Invalid JSON in request body", {
-        status: 400,
-        headers: corsHeaders,
-      });
-    }
-
     await server.handleRequest(body);
 
     logger.info({
       requestId,
-      userId,
+      userId: effectiveUserId,
       method: "handleMCPRequest",
       duration: Date.now() - startTime,
       metadata: {
         method: body.method,
         success: true,
+        authenticated: !!userId,
       },
     });
 
