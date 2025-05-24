@@ -7,6 +7,10 @@ export class RateLimiter {
   async checkLimit(userId: string): Promise<boolean> {
     const key = `rate:${userId}`;
 
+    // Note: Cloudflare Workers KV doesn't support atomic operations.
+    // This implementation has a small race condition window, but it's
+    // acceptable for rate limiting purposes where exact precision isn't critical.
+    
     // Get current count
     const countStr = await this.kvNamespace.get(key);
     const currentCount = countStr ? parseInt(countStr, 10) || 0 : 0;
@@ -17,6 +21,7 @@ export class RateLimiter {
     }
 
     // Increment counter with TTL
+    // Race condition: Multiple requests could read the same count before any writes complete
     await this.kvNamespace.put(key, (currentCount + 1).toString(), {
       expirationTtl: (this.constructor as typeof RateLimiter).WINDOW_SIZE,
     });

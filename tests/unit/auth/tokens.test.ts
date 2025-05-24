@@ -31,7 +31,7 @@ describe('TokenManager', () => {
       GOOGLE_CLIENT_ID: 'test-client-id',
       GOOGLE_CLIENT_SECRET: 'test-client-secret',
       ENCRYPTION_KEY: 'test-encryption-key',
-      JWT_SECRET: 'test-jwt-secret',
+      JWT_SECRET: 'test-jwt-secret-that-is-at-least-32-characters-long',
       ALLOWED_ORIGINS: 'http://localhost:3000',
     };
 

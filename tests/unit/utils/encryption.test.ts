@@ -193,6 +193,15 @@ describe('Encryption', () => {
 
       await expect(encrypt('test', invalidKeyEnv)).rejects.toThrow();
     });
+
+    it('should throw error if encryption key is not 32 bytes', async () => {
+      // 16 bytes encoded as base64
+      const shortKeyEnv: Env = { ENCRYPTION_KEY: btoa('1234567890123456') };
+
+      await expect(encrypt('test', shortKeyEnv)).rejects.toThrow(
+        'Encryption key must be exactly 32 bytes (base64 encoded)'
+      );
+    });
   });
 
   describe('data integrity', () => {
