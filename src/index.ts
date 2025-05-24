@@ -59,12 +59,12 @@ export default {
 
       // OAuth callback handler
       if (url.pathname === "/oauth/callback") {
-        return handleOAuthCallback(request, env, requestId, logger);
+        return handleOAuthCallback(request, env, securityHeaders, requestId, logger);
       }
 
       // OAuth authorization endpoint
       if (url.pathname === "/oauth/authorize") {
-        return handleOAuthAuthorize(request, env, requestId, logger);
+        return handleOAuthAuthorize(request, env, securityHeaders, requestId, logger);
       }
 
       // MCP SSE endpoint
@@ -102,6 +102,7 @@ export default {
 async function handleOAuthAuthorize(
   request: Request,
   env: Env,
+  securityHeaders: Record<string, string>,
   requestId: string,
   logger: Logger,
 ): Promise<Response> {
@@ -110,7 +111,10 @@ async function handleOAuthAuthorize(
   const clientIp = request.headers.get("CF-Connecting-IP") || "unknown";
 
   if (!userId) {
-    return new Response("Missing user_id parameter", { status: 400 });
+    return new Response("Missing user_id parameter", {
+      status: 400,
+      headers: securityHeaders,
+    });
   }
 
   const state = await createState(env, userId, clientIp);
@@ -120,7 +124,10 @@ async function handleOAuthAuthorize(
       method: "handleOAuthAuthorize",
       metadata: { reason: "Rate limit exceeded for state generation" },
     });
-    return new Response("Too many authorization attempts", { status: 429 });
+    return new Response("Too many authorization attempts", {
+      status: 429,
+      headers: securityHeaders,
+    });
   }
 
   const oauth = new GoogleOAuth({
@@ -144,12 +151,16 @@ async function handleOAuthAuthorize(
     metadata: { redirecting: true },
   });
 
-  return Response.redirect(authUrl, 302);
+  return new Response(null, {
+    status: 302,
+    headers: { ...securityHeaders, Location: authUrl },
+  });
 }
 
 async function handleOAuthCallback(
   request: Request,
   env: Env,
+  securityHeaders: Record<string, string>,
   requestId: string,
   logger: Logger,
 ): Promise<Response> {
@@ -164,7 +175,10 @@ async function handleOAuthCallback(
       method: "handleOAuthCallback",
       metadata: { hasCode: !!code, hasValidState: !!userId },
     });
-    return new Response("Invalid state parameter", { status: 400 });
+    return new Response("Invalid state parameter", {
+      status: 400,
+      headers: securityHeaders,
+    });
   }
 
   const oauth = new GoogleOAuth({
@@ -193,7 +207,7 @@ async function handleOAuthCallback(
     const jwt = await createJWT(userId, env.JWT_SECRET, 3600);
 
     return new Response(JSON.stringify({ token: jwt }), {
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...securityHeaders },
     });
   } catch (error) {
     logger.error({
@@ -207,7 +221,10 @@ async function handleOAuthCallback(
       },
     });
 
-    return new Response("Authorization failed", { status: 500 });
+    return new Response("Authorization failed", {
+      status: 500,
+      headers: securityHeaders,
+    });
   }
 }
 
