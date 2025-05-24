@@ -113,6 +113,9 @@ describe('Main Handler', () => {
 
       expect(response.status).toBe(302);
       expect(response.headers.get('Location')).toContain('accounts.google.com');
+      expect(response.headers.get('X-Content-Type-Options')).toBe('nosniff');
+      expect(response.headers.get('X-Frame-Options')).toBe('DENY');
+      expect(response.headers.get('X-XSS-Protection')).toBe('1; mode=block');
       expect(vi.mocked(createState)).toHaveBeenCalledWith(
         mockEnv,
         'test123',
@@ -129,6 +132,9 @@ describe('Main Handler', () => {
 
       expect(response.status).toBe(400);
       expect(await response.text()).toBe('Missing user_id parameter');
+      expect(response.headers.get('X-Content-Type-Options')).toBe('nosniff');
+      expect(response.headers.get('X-Frame-Options')).toBe('DENY');
+      expect(response.headers.get('X-XSS-Protection')).toBe('1; mode=block');
     });
 
     it('should route to OAuth callback endpoint', async () => {
@@ -161,6 +167,9 @@ describe('Main Handler', () => {
 
       expect(response.status).toBe(200);
       expect(response.headers.get('Content-Type')).toBe('application/json');
+      expect(response.headers.get('X-Content-Type-Options')).toBe('nosniff');
+      expect(response.headers.get('X-Frame-Options')).toBe('DENY');
+      expect(response.headers.get('X-XSS-Protection')).toBe('1; mode=block');
       const body = await response.json();
       expect(body.token).toBeDefined();
       expect(mockOAuth.exchangeCodeForTokens).toHaveBeenCalledWith('auth-code');
