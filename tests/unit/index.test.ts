@@ -160,8 +160,9 @@ describe('Main Handler', () => {
       const response = await defaultExport.fetch(request, mockEnv);
 
       expect(response.status).toBe(200);
-      expect(response.headers.get('Content-Type')).toBe('text/html');
-      expect(await response.text()).toContain('Authorization successful!');
+      expect(response.headers.get('Content-Type')).toBe('application/json');
+      const body = await response.json();
+      expect(body.token).toBeDefined();
       expect(mockOAuth.exchangeCodeForTokens).toHaveBeenCalledWith('auth-code');
       expect(mockStorage.storeTokens).toHaveBeenCalled();
     });

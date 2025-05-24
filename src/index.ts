@@ -4,6 +4,7 @@ import { MCPRequest } from "./mcp/types";
 import { GoogleOAuth } from "./auth/oauth";
 import { TokenStorage } from "./auth/storage";
 import { validateRequest } from "./utils/validation";
+import { createJWT } from "./utils/jwt";
 import { RateLimiter } from "./utils/rate-limit";
 import { Logger } from "./utils/logger";
 import { createState, consumeState } from "./auth/state";
@@ -188,27 +189,11 @@ async function handleOAuthCallback(
       metadata: { success: true },
     });
 
-    return new Response(
-      `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>Authorization Successful</title>
-        <style>
-          body { font-family: system-ui; text-align: center; padding: 50px; }
-          .success { color: #10b981; font-size: 24px; }
-        </style>
-      </head>
-      <body>
-        <div class="success">✓ Authorization successful!</div>
-        <p>You can close this window and return to your application.</p>
-      </body>
-      </html>
-    `,
-      {
-        headers: { "Content-Type": "text/html" },
-      },
-    );
+    const jwt = await createJWT(userId, env.JWT_SECRET, 3600);
+
+    return new Response(JSON.stringify({ token: jwt }), {
+      headers: { "Content-Type": "application/json" },
+    });
   } catch (error) {
     logger.error({
       requestId,
