@@ -146,6 +146,33 @@ google-workspace-remote-mcp/
 - Connection pooling for SSE streams
 - Lazy loading of tool implementations
 
+## Cloudflare Workers Compatibility
+
+This project is built for Cloudflare Workers with the following considerations:
+
+### Node.js Compatibility
+- Uses `compatibility_date = "2024-09-23"` and `nodejs_compat` flag for Node.js API support
+- The `googleapis` package works via Wrangler's automatic polyfills
+- No native Node.js modules or file system access required
+
+### Runtime Considerations
+- All cryptographic operations use the Web Crypto API
+- Buffer operations are polyfilled automatically by Wrangler
+- Network requests use the Fetch API
+- No long-running processes or WebSocket connections
+
+### Deployment Notes
+- Ensure your `wrangler.toml` includes the `nodejs_compat` compatibility flag
+- The worker bundle size is optimized through tree-shaking
+- KV storage is used for all persistent data (tokens, rate limits)
+- Environment variables and secrets are properly configured
+
+If you encounter compatibility issues during deployment:
+1. Check that `compatibility_date` is set to a recent date
+2. Verify the `nodejs_compat` flag is enabled
+3. Review the Wrangler build output for any bundling warnings
+4. Test thoroughly in the Cloudflare Workers environment
+
 ## Contributing
 
 This is a private project for Jamie's assistant configuration. For similar implementations, reference the patterns and adapt to your needs.

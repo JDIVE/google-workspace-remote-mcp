@@ -197,7 +197,14 @@ describe('Main Handler', () => {
       vi.mocked(RateLimiter).mockImplementation(() => mockRateLimiter as any);
 
       const mockTransport = {
-        getResponse: vi.fn().mockReturnValue(new Response('SSE response')),
+        getResponse: vi.fn().mockImplementation((headers) => {
+          return new Response('SSE response', {
+            headers: {
+              'Content-Type': 'text/event-stream',
+              ...headers
+            }
+          });
+        }),
       };
       vi.mocked(SSETransport).mockImplementation(() => mockTransport as any);
 
@@ -243,9 +250,14 @@ describe('Main Handler', () => {
       vi.mocked(RateLimiter).mockImplementation(() => mockRateLimiter as any);
 
       const mockTransport = {
-        getResponse: vi.fn().mockReturnValue(new Response('SSE response', {
-          headers: { 'Content-Type': 'text/event-stream' }
-        })),
+        getResponse: vi.fn().mockImplementation((headers) => {
+          return new Response('SSE response', {
+            headers: {
+              'Content-Type': 'text/event-stream',
+              ...headers
+            }
+          });
+        }),
       };
       vi.mocked(SSETransport).mockImplementation(() => mockTransport as any);
 
@@ -259,6 +271,11 @@ describe('Main Handler', () => {
 
       expect(response.status).toBe(200);
       expect(response.headers.get('Content-Type')).toBe('text/event-stream');
+      // Verify security headers are included
+      expect(response.headers.get('X-Content-Type-Options')).toBe('nosniff');
+      expect(response.headers.get('X-Frame-Options')).toBe('DENY');
+      expect(response.headers.get('X-XSS-Protection')).toBe('1; mode=block');
+      expect(response.headers.get('Strict-Transport-Security')).toBe('max-age=31536000; includeSubDomains');
       expect(mockServer.initialize).toHaveBeenCalled();
       expect(mockServer.handleRequest).toHaveBeenCalledWith({
         jsonrpc: '2.0',
@@ -323,9 +340,14 @@ describe('Main Handler', () => {
       vi.mocked(RateLimiter).mockImplementation(() => mockRateLimiter as any);
 
       const mockTransport = {
-        getResponse: vi.fn().mockReturnValue(new Response('SSE response', {
-          headers: { 'Content-Type': 'text/event-stream' }
-        })),
+        getResponse: vi.fn().mockImplementation((headers) => {
+          return new Response('SSE response', {
+            headers: {
+              'Content-Type': 'text/event-stream',
+              ...headers
+            }
+          });
+        }),
       };
       vi.mocked(SSETransport).mockImplementation(() => mockTransport as any);
 
@@ -339,6 +361,11 @@ describe('Main Handler', () => {
 
       expect(response.status).toBe(200); // Returns 200 with SSE stream containing auth URL
       expect(response.headers.get('Content-Type')).toBe('text/event-stream');
+      // Verify security headers are included for unauthenticated SSE
+      expect(response.headers.get('X-Content-Type-Options')).toBe('nosniff');
+      expect(response.headers.get('X-Frame-Options')).toBe('DENY');
+      expect(response.headers.get('X-XSS-Protection')).toBe('1; mode=block');
+      expect(response.headers.get('Strict-Transport-Security')).toBe('max-age=31536000; includeSubDomains');
       // Verify the server was created in unauthenticated mode (5th parameter = true)
       expect(vi.mocked(MCPServer)).toHaveBeenCalledWith(
         expect.anything(), // transport
