@@ -102,7 +102,7 @@ globs = ["**/*.js"]
 ### Worker Secrets Required
 - `GOOGLE_CLIENT_ID`: OAuth 2.0 client ID
 - `GOOGLE_CLIENT_SECRET`: OAuth 2.0 client secret
-- `ENCRYPTION_KEY`: 32-character encryption key for token storage
+- `ENCRYPTION_KEY`: 32-byte encryption key for token storage (base64 encoded)
 
 ### Worker Variables
 - `ALLOWED_ORIGINS`: Comma-separated list of allowed CORS origins

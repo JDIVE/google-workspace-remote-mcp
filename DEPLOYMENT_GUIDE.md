@@ -110,19 +110,25 @@ wrangler secret put GOOGLE_CLIENT_ID
 wrangler secret put GOOGLE_CLIENT_SECRET
 # Paste your client secret when prompted
 
-# Encryption Key (32 characters)
+# Encryption Key (32-byte key, base64 encoded)
 wrangler secret put ENCRYPTION_KEY
-# Paste your encryption key when prompted
+# Paste your base64-encoded encryption key when prompted
 ```
 
 ### 3.2 Generate Encryption Key
 If you need to generate a new encryption key:
+```bash
+# Generate secure 32-byte encryption key
+openssl rand -base64 32
+```
+
+Or using Node.js:
 ```javascript
 // generate-key.js
 const crypto = require('crypto');
-const key = crypto.randomBytes(32).toString('base64').slice(0, 32);
+const key = crypto.randomBytes(32).toString('base64');
 console.log('Encryption Key:', key);
-console.log('Length:', key.length);
+console.log('Key length:', Buffer.from(key, 'base64').length, 'bytes');
 ```
 
 Run:

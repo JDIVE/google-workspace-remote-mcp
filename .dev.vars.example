@@ -5,9 +5,9 @@
 GOOGLE_CLIENT_ID=your_client_id
 GOOGLE_CLIENT_SECRET=your_client_secret
 
-# 32-character encryption key for token storage
-# Generate with: openssl rand -hex 16
-ENCRYPTION_KEY=32_char_encryption_key_for_dev
+# 32-byte encryption key for token storage (base64 encoded)
+# Generate with: openssl rand -base64 32
+ENCRYPTION_KEY=your_base64_encoded_32_byte_key
 
 # Secret for JWT validation  
 # Generate with: openssl rand -hex 32

@@ -69,7 +69,7 @@ export default {
 
       // MCP SSE endpoint
       if (url.pathname === "/mcp" && request.method === "POST") {
-        return handleMCPRequest(request, env, corsHeaders, requestId, logger);
+        return handleMCPRequest(request, env, corsHeaders, securityHeaders, requestId, logger);
       }
 
       // Health check
@@ -215,6 +215,7 @@ async function handleMCPRequest(
   request: Request,
   env: Env,
   corsHeaders: Record<string, string>,
+  securityHeaders: Record<string, string>,
   requestId: string,
   logger: Logger,
 ): Promise<Response> {
@@ -236,7 +237,7 @@ async function handleMCPRequest(
 
     return new Response("Invalid JSON in request body", {
       status: 400,
-      headers: corsHeaders,
+      headers: { ...securityHeaders, ...corsHeaders },
     });
   }
 
@@ -263,7 +264,7 @@ async function handleMCPRequest(
         
         return new Response("Invalid or expired token", { 
           status: 401, 
-          headers: corsHeaders 
+          headers: { ...securityHeaders, ...corsHeaders }
         });
       }
       // Re-throw other errors
@@ -291,6 +292,7 @@ async function handleMCPRequest(
       return new Response("Rate limit exceeded", {
         status: 429,
         headers: {
+          ...securityHeaders,
           ...corsHeaders,
           "Retry-After": "60",
         },
@@ -304,7 +306,10 @@ async function handleMCPRequest(
     await server.initialize();
     await server.handleRequest(body);
     
-    return transport.getResponse(corsHeaders);
+    return transport.getResponse({
+      ...securityHeaders,
+      ...corsHeaders,
+    });
   }
 
   // For authenticated requests or allowed unauthenticated methods
@@ -332,6 +337,7 @@ async function handleMCPRequest(
       return new Response("Rate limit exceeded", {
         status: 429,
         headers: {
+          ...securityHeaders,
           ...corsHeaders,
           "Retry-After": "60",
         },
@@ -360,16 +366,10 @@ async function handleMCPRequest(
       },
     });
 
-    // Include security headers in SSE response
-    const sseHeaders = {
-      "X-Content-Type-Options": "nosniff",
-      "X-Frame-Options": "DENY",
-      "X-XSS-Protection": "1; mode=block",
-      "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+    return transport.getResponse({
+      ...securityHeaders,
       ...corsHeaders,
-    };
-
-    return transport.getResponse(sseHeaders);
+    });
   } catch (error) {
     logger.error({
       requestId,
@@ -384,7 +384,7 @@ async function handleMCPRequest(
 
     return new Response("Internal server error", {
       status: 500,
-      headers: corsHeaders,
+      headers: { ...securityHeaders, ...corsHeaders },
     });
   }
 }

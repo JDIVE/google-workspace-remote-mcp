@@ -34,5 +34,5 @@ preview_id = "your-rate-limits-preview-id"
 # Set these using wrangler secret put VARIABLE_NAME
 # GOOGLE_CLIENT_ID - From Google Cloud Console
 # GOOGLE_CLIENT_SECRET - From Google Cloud Console  
-# ENCRYPTION_KEY - 32-character key for token encryption
+# ENCRYPTION_KEY - 32-byte key for token encryption (base64 encoded)
 # JWT_SECRET - Secret for JWT validation
