@@ -29,6 +29,7 @@ export class MCPServer {
     private userId: string,
     private logger: Logger,
     private isUnauthenticated: boolean = false,
+    private requestUrl?: string,
   ) {
     this.tokenManager = new TokenManager(env);
   }
@@ -122,9 +123,10 @@ export class MCPServer {
 
     // Check if authentication is required
     if (this.isUnauthenticated) {
-      // Generate OAuth URL for unauthenticated users
-      const workerUrl = `https://google-workspace-mcp.openshaw.workers.dev`;
-      const authUrl = new URL(`${workerUrl}/oauth/authorize`);
+      // Generate OAuth URL using the request origin
+      const requestUrl = this.requestUrl ? new URL(this.requestUrl) : null;
+      const baseUrl = requestUrl ? `${requestUrl.protocol}//${requestUrl.host}` : 'https://your-worker.workers.dev';
+      const authUrl = new URL(`${baseUrl}/oauth/authorize`);
       authUrl.searchParams.set('user_id', this.userId);
       
       return {

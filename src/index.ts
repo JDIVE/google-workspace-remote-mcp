@@ -3,7 +3,7 @@ import { SSETransport } from "./mcp/transport";
 import { MCPRequest } from "./mcp/types";
 import { GoogleOAuth } from "./auth/oauth";
 import { TokenStorage } from "./auth/storage";
-import { validateRequest } from "./utils/validation";
+import { validateRequest, JWTError } from "./utils/validation";
 import { createJWT } from "./utils/jwt";
 import { RateLimiter } from "./utils/rate-limit";
 import { Logger } from "./utils/logger";
@@ -247,15 +247,60 @@ async function handleMCPRequest(
   let userId: string | null = null;
   
   if (authHeader && authHeader.startsWith("Bearer ")) {
-    userId = await validateRequest(authHeader, env.JWT_SECRET);
+    try {
+      userId = await validateRequest(authHeader, env.JWT_SECRET);
+    } catch (error) {
+      // Handle JWT validation errors specifically
+      if (error instanceof JWTError) {
+        logger.warn({
+          requestId,
+          method: "handleMCPRequest",
+          error: {
+            code: "JWT_VALIDATION_FAILED",
+            message: error.message,
+          },
+        });
+        
+        return new Response("Invalid or expired token", { 
+          status: 401, 
+          headers: corsHeaders 
+        });
+      }
+      // Re-throw other errors
+      throw error;
+    }
   }
 
   // For methods that require auth, check if we have valid auth
   if (isAuthRequired && !userId) {
+    // Rate limiting for unauthenticated requests
+    const rateLimiter = new RateLimiter(env.RATE_LIMITS);
+    const clientIp = request.headers.get("CF-Connecting-IP") || "unknown";
+    const allowed = await rateLimiter.checkLimit(`unauth:${clientIp}`);
+    
+    if (!allowed) {
+      logger.warn({
+        requestId,
+        method: "handleMCPRequest",
+        metadata: { 
+          reason: "Rate limit exceeded for unauthenticated request",
+          clientIp
+        },
+      });
+
+      return new Response("Rate limit exceeded", {
+        status: 429,
+        headers: {
+          ...corsHeaders,
+          "Retry-After": "60",
+        },
+      });
+    }
+    
     // Generate a temporary session ID for unauthenticated users
     const sessionId = crypto.randomUUID();
     const transport = new SSETransport();
-    const server = new MCPServer(transport, env, sessionId, logger, true); // true = unauthenticated mode
+    const server = new MCPServer(transport, env, sessionId, logger, true, request.url); // true = unauthenticated mode
     await server.initialize();
     await server.handleRequest(body);
     
@@ -266,32 +311,36 @@ async function handleMCPRequest(
   const effectiveUserId = userId || crypto.randomUUID();
   
   try {
-    // Rate limiting only for authenticated requests
-    if (userId) {
-      const rateLimiter = new RateLimiter(env.RATE_LIMITS);
-      const allowed = await rateLimiter.checkLimit(userId);
+    // Rate limiting for all requests
+    const rateLimiter = new RateLimiter(env.RATE_LIMITS);
+    // For unauthenticated requests, use IP address as identifier
+    const rateLimitKey = userId || request.headers.get("CF-Connecting-IP") || "unknown";
+    const allowed = await rateLimiter.checkLimit(rateLimitKey);
 
-      if (!allowed) {
-        logger.warn({
-          requestId,
-          userId,
-          method: "handleMCPRequest",
-          metadata: { reason: "Rate limit exceeded" },
-        });
+    if (!allowed) {
+      logger.warn({
+        requestId,
+        userId: effectiveUserId,
+        method: "handleMCPRequest",
+        metadata: { 
+          reason: "Rate limit exceeded",
+          authenticated: !!userId,
+          rateLimitKey
+        },
+      });
 
-        return new Response("Rate limit exceeded", {
-          status: 429,
-          headers: {
-            ...corsHeaders,
-            "Retry-After": "60",
-          },
-        });
-      }
+      return new Response("Rate limit exceeded", {
+        status: 429,
+        headers: {
+          ...corsHeaders,
+          "Retry-After": "60",
+        },
+      });
     }
 
     // Create SSE transport
     const transport = new SSETransport();
-    const server = new MCPServer(transport, env, effectiveUserId, logger, !userId);
+    const server = new MCPServer(transport, env, effectiveUserId, logger, !userId, request.url);
 
     // Initialize server
     await server.initialize();

@@ -235,6 +235,12 @@ describe('Main Handler', () => {
       // Mock dependencies
       const { SSETransport } = await import('../../src/mcp/transport');
       const { MCPServer } = await import('../../src/mcp/server');
+      const { RateLimiter } = await import('../../src/utils/rate-limit');
+
+      const mockRateLimiter = {
+        checkLimit: vi.fn().mockResolvedValue(true),
+      };
+      vi.mocked(RateLimiter).mockImplementation(() => mockRateLimiter as any);
 
       const mockTransport = {
         getResponse: vi.fn().mockReturnValue(new Response('SSE response', {
@@ -261,6 +267,34 @@ describe('Main Handler', () => {
       });
     });
 
+    it('should return 401 for invalid JWT token', async () => {
+      const request = new Request('https://example.com/mcp', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer invalid-jwt-token',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 'test',
+          method: 'tools/call',
+          params: {
+            name: 'gmail_list',
+            arguments: {}
+          }
+        }),
+      });
+
+      // Mock JWT validation failure
+      const { validateRequest, JWTError } = await import('../../src/utils/validation');
+      vi.mocked(validateRequest).mockRejectedValue(new JWTError('INVALID_SIGNATURE', 'Invalid signature'));
+
+      const response = await defaultExport.fetch(request, mockEnv);
+
+      expect(response.status).toBe(401);
+      expect(await response.text()).toBe('Invalid or expired token');
+    });
+
     it('should require authorization for tools/call', async () => {
       const request = new Request('https://example.com/mcp', {
         method: 'POST',
@@ -281,6 +315,12 @@ describe('Main Handler', () => {
       // Mock dependencies
       const { SSETransport } = await import('../../src/mcp/transport');
       const { MCPServer } = await import('../../src/mcp/server');
+      const { RateLimiter } = await import('../../src/utils/rate-limit');
+
+      const mockRateLimiter = {
+        checkLimit: vi.fn().mockResolvedValue(true),
+      };
+      vi.mocked(RateLimiter).mockImplementation(() => mockRateLimiter as any);
 
       const mockTransport = {
         getResponse: vi.fn().mockReturnValue(new Response('SSE response', {
@@ -305,7 +345,8 @@ describe('Main Handler', () => {
         mockEnv,
         expect.any(String), // sessionId
         expect.anything(), // logger
-        true // isUnauthenticated
+        true, // isUnauthenticated
+        'https://example.com/mcp' // requestUrl
       );
     });
 
