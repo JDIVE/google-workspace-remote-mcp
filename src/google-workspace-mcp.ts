@@ -58,7 +58,15 @@ export class GoogleWorkspaceMCP extends McpAgent<Props, Env> {
           this.props.googleTokens.expires_at = tokens.expiry_date;
         }
         
-        // TODO: Persist the updated tokens back to Durable Objects storage
+        // Persist the updated tokens back to Durable Objects storage
+        try {
+          await this.updateProps({
+            googleTokens: this.props.googleTokens
+          });
+          console.log('Successfully persisted updated tokens to Durable Objects');
+        } catch (error) {
+          console.error('Failed to persist tokens:', error);
+        }
       });
 
       // Register all Google Workspace tools
@@ -281,7 +289,422 @@ export class GoogleWorkspaceMCP extends McpAgent<Props, Env> {
       }
     );
 
-    // Add more Gmail tools here...
+    // Get message details
+    this.server.tool(
+      "gmail_get_message",
+      "Get full details of a specific email message",
+      {
+        email: z.string().describe("Email address of the Gmail account"),
+        messageId: z.string().describe("ID of the message to retrieve"),
+        format: z.enum(["minimal", "full", "raw", "metadata"]).optional().default("full")
+      },
+      async ({ email, messageId, format }) => {
+        try {
+          const response = await gmail.users.messages.get({
+            userId: 'me',
+            id: messageId,
+            format
+          });
+
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify(response.data, null, 2)
+            }]
+          };
+        } catch (error) {
+          throw new Error(`Failed to get message: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
+    );
+
+    // Trash/untrash messages
+    this.server.tool(
+      "gmail_trash_message",
+      "Move a message to trash",
+      {
+        email: z.string().describe("Email address of the Gmail account"),
+        messageId: z.string().describe("ID of the message to trash")
+      },
+      async ({ email, messageId }) => {
+        try {
+          const response = await gmail.users.messages.trash({
+            userId: 'me',
+            id: messageId
+          });
+
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                messageId: response.data.id,
+                labelIds: response.data.labelIds
+              }, null, 2)
+            }]
+          };
+        } catch (error) {
+          throw new Error(`Failed to trash message: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
+    );
+
+    this.server.tool(
+      "gmail_untrash_message",
+      "Recover a message from trash",
+      {
+        email: z.string().describe("Email address of the Gmail account"),
+        messageId: z.string().describe("ID of the message to untrash")
+      },
+      async ({ email, messageId }) => {
+        try {
+          const response = await gmail.users.messages.untrash({
+            userId: 'me',
+            id: messageId
+          });
+
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                messageId: response.data.id,
+                labelIds: response.data.labelIds
+              }, null, 2)
+            }]
+          };
+        } catch (error) {
+          throw new Error(`Failed to untrash message: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
+    );
+
+    // Draft management
+    this.server.tool(
+      "draft_manage",
+      "Manage Gmail drafts with CRUD operations and sending",
+      {
+        email: z.string().describe("Email address of the Gmail account"),
+        action: z.enum(["create", "read", "update", "delete", "send"]).describe("Operation to perform"),
+        draftId: z.string().optional().describe("Draft ID (required for read/update/delete/send)"),
+        data: z.object({
+          to: z.array(z.string()).optional(),
+          subject: z.string().optional(),
+          body: z.string().optional(),
+          cc: z.array(z.string()).optional(),
+          bcc: z.array(z.string()).optional(),
+          replyToMessageId: z.string().optional(),
+          threadId: z.string().optional()
+        }).optional()
+      },
+      async ({ email, action, draftId, data }) => {
+        try {
+          switch (action) {
+            case "create": {
+              const message = [
+                'Content-Type: text/plain; charset="UTF-8"',
+                'MIME-Version: 1.0',
+                data?.to ? `To: ${data.to.join(', ')}` : '',
+                data?.subject ? `Subject: ${data.subject}` : '',
+                data?.cc ? `Cc: ${data.cc.join(', ')}` : '',
+                data?.bcc ? `Bcc: ${data.bcc.join(', ')}` : '',
+                data?.replyToMessageId ? `In-Reply-To: ${data.replyToMessageId}` : '',
+                data?.replyToMessageId ? `References: ${data.replyToMessageId}` : '',
+                '',
+                data?.body || ''
+              ].filter(line => line).join('\r\n');
+
+              const encodedMessage = Buffer.from(message).toString('base64')
+                .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+              const response = await gmail.users.drafts.create({
+                userId: 'me',
+                requestBody: {
+                  message: {
+                    raw: encodedMessage,
+                    threadId: data?.threadId
+                  }
+                }
+              });
+
+              return {
+                content: [{
+                  type: "text",
+                  text: JSON.stringify({
+                    draftId: response.data.id,
+                    message: response.data.message
+                  }, null, 2)
+                }]
+              };
+            }
+
+            case "read": {
+              if (!draftId) {
+                // List all drafts
+                const response = await gmail.users.drafts.list({
+                  userId: 'me',
+                  maxResults: 20
+                });
+
+                return {
+                  content: [{
+                    type: "text",
+                    text: JSON.stringify(response.data, null, 2)
+                  }]
+                };
+              } else {
+                // Get specific draft
+                const response = await gmail.users.drafts.get({
+                  userId: 'me',
+                  id: draftId
+                });
+
+                return {
+                  content: [{
+                    type: "text",
+                    text: JSON.stringify(response.data, null, 2)
+                  }]
+                };
+              }
+            }
+
+            case "update": {
+              if (!draftId) throw new Error("draftId required for update");
+              
+              const message = [
+                'Content-Type: text/plain; charset="UTF-8"',
+                'MIME-Version: 1.0',
+                data?.to ? `To: ${data.to.join(', ')}` : '',
+                data?.subject ? `Subject: ${data.subject}` : '',
+                data?.cc ? `Cc: ${data.cc.join(', ')}` : '',
+                data?.bcc ? `Bcc: ${data.bcc.join(', ')}` : '',
+                '',
+                data?.body || ''
+              ].filter(line => line).join('\r\n');
+
+              const encodedMessage = Buffer.from(message).toString('base64')
+                .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+              const response = await gmail.users.drafts.update({
+                userId: 'me',
+                id: draftId,
+                requestBody: {
+                  message: {
+                    raw: encodedMessage,
+                    threadId: data?.threadId
+                  }
+                }
+              });
+
+              return {
+                content: [{
+                  type: "text",
+                  text: JSON.stringify(response.data, null, 2)
+                }]
+              };
+            }
+
+            case "delete": {
+              if (!draftId) throw new Error("draftId required for delete");
+              
+              await gmail.users.drafts.delete({
+                userId: 'me',
+                id: draftId
+              });
+
+              return {
+                content: [{
+                  type: "text",
+                  text: JSON.stringify({ success: true, deleted: draftId }, null, 2)
+                }]
+              };
+            }
+
+            case "send": {
+              if (!draftId) throw new Error("draftId required for send");
+              
+              const response = await gmail.users.drafts.send({
+                userId: 'me',
+                requestBody: {
+                  id: draftId
+                }
+              });
+
+              return {
+                content: [{
+                  type: "text",
+                  text: JSON.stringify({
+                    success: true,
+                    messageId: response.data.id,
+                    threadId: response.data.threadId
+                  }, null, 2)
+                }]
+              };
+            }
+
+            default:
+              throw new Error(`Unknown action: ${action}`);
+          }
+        } catch (error) {
+          throw new Error(`Draft operation failed: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
+    );
+
+    // Label management
+    this.server.tool(
+      "label_manage",
+      "Manage Gmail labels with CRUD operations",
+      {
+        email: z.string().describe("Email address of the Gmail account"),
+        action: z.enum(["create", "read", "update", "delete"]).describe("Operation to perform"),
+        labelId: z.string().optional().describe("Label ID (required for read/update/delete)"),
+        data: z.object({
+          name: z.string().optional(),
+          messageListVisibility: z.enum(["show", "hide"]).optional(),
+          labelListVisibility: z.enum(["labelShow", "labelHide", "labelShowIfUnread"]).optional(),
+          color: z.object({
+            backgroundColor: z.string().optional(),
+            textColor: z.string().optional()
+          }).optional()
+        }).optional()
+      },
+      async ({ email, action, labelId, data }) => {
+        try {
+          switch (action) {
+            case "create": {
+              if (!data?.name) throw new Error("Label name required");
+              
+              const response = await gmail.users.labels.create({
+                userId: 'me',
+                requestBody: {
+                  name: data.name,
+                  messageListVisibility: data.messageListVisibility,
+                  labelListVisibility: data.labelListVisibility,
+                  color: data.color
+                }
+              });
+
+              return {
+                content: [{
+                  type: "text",
+                  text: JSON.stringify(response.data, null, 2)
+                }]
+              };
+            }
+
+            case "read": {
+              if (!labelId) {
+                // List all labels
+                const response = await gmail.users.labels.list({
+                  userId: 'me'
+                });
+
+                return {
+                  content: [{
+                    type: "text",
+                    text: JSON.stringify(response.data, null, 2)
+                  }]
+                };
+              } else {
+                // Get specific label
+                const response = await gmail.users.labels.get({
+                  userId: 'me',
+                  id: labelId
+                });
+
+                return {
+                  content: [{
+                    type: "text",
+                    text: JSON.stringify(response.data, null, 2)
+                  }]
+                };
+              }
+            }
+
+            case "update": {
+              if (!labelId) throw new Error("labelId required for update");
+              
+              const response = await gmail.users.labels.update({
+                userId: 'me',
+                id: labelId,
+                requestBody: {
+                  name: data?.name,
+                  messageListVisibility: data?.messageListVisibility,
+                  labelListVisibility: data?.labelListVisibility,
+                  color: data?.color
+                }
+              });
+
+              return {
+                content: [{
+                  type: "text",
+                  text: JSON.stringify(response.data, null, 2)
+                }]
+              };
+            }
+
+            case "delete": {
+              if (!labelId) throw new Error("labelId required for delete");
+              
+              await gmail.users.labels.delete({
+                userId: 'me',
+                id: labelId
+              });
+
+              return {
+                content: [{
+                  type: "text",
+                  text: JSON.stringify({ success: true, deleted: labelId }, null, 2)
+                }]
+              };
+            }
+
+            default:
+              throw new Error(`Unknown action: ${action}`);
+          }
+        } catch (error) {
+          throw new Error(`Label operation failed: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
+    );
+
+    // Label assignment
+    this.server.tool(
+      "label_assign",
+      "Manage label assignments for Gmail messages",
+      {
+        email: z.string().describe("Email address of the Gmail account"),
+        action: z.enum(["add", "remove"]).describe("Whether to add or remove labels"),
+        messageId: z.string().describe("ID of the message to modify"),
+        labelIds: z.array(z.string()).describe("Array of label IDs to add or remove")
+      },
+      async ({ email, action, messageId, labelIds }) => {
+        try {
+          const response = await gmail.users.messages.modify({
+            userId: 'me',
+            id: messageId,
+            requestBody: {
+              addLabelIds: action === 'add' ? labelIds : undefined,
+              removeLabelIds: action === 'remove' ? labelIds : undefined
+            }
+          });
+
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                messageId: response.data.id,
+                labelIds: response.data.labelIds
+              }, null, 2)
+            }]
+          };
+        } catch (error) {
+          throw new Error(`Failed to ${action} labels: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
+    );
   }
 
   private registerCalendarTools() {
@@ -381,7 +804,188 @@ export class GoogleWorkspaceMCP extends McpAgent<Props, Env> {
       }
     );
 
-    // Add more calendar tools here...
+    // Get specific event
+    this.server.tool(
+      "calendar_event_get",
+      "Get a single calendar event by ID",
+      {
+        email: z.string().describe("Email address of the calendar owner"),
+        eventId: z.string().describe("Unique identifier of the event to retrieve")
+      },
+      async ({ email, eventId }) => {
+        try {
+          const response = await calendar.events.get({
+            calendarId: 'primary',
+            eventId
+          });
+
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify(response.data, null, 2)
+            }]
+          };
+        } catch (error) {
+          throw new Error(`Failed to get event: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
+    );
+
+    // Update event
+    this.server.tool(
+      "calendar_event_update",
+      "Update an existing calendar event",
+      {
+        email: z.string().describe("Email address of the calendar owner"),
+        eventId: z.string().describe("ID of the event to update"),
+        summary: z.string().optional().describe("Event title"),
+        start: z.object({
+          dateTime: z.string().describe("Event start time (ISO date string)"),
+          timeZone: z.string().optional().describe("Timezone for start time")
+        }).optional(),
+        end: z.object({
+          dateTime: z.string().describe("Event end time (ISO date string)"),
+          timeZone: z.string().optional().describe("Timezone for end time")
+        }).optional(),
+        description: z.string().optional().describe("Event description"),
+        attendees: z.array(z.object({
+          email: z.string().describe("Attendee email address")
+        })).optional().describe("List of event attendees"),
+        recurrence: z.array(z.string()).optional().describe("RRULE strings for recurring events")
+      },
+      async ({ email, eventId, ...updateData }) => {
+        try {
+          // Get current event first
+          const currentEvent = await calendar.events.get({
+            calendarId: 'primary',
+            eventId
+          });
+
+          // Merge update data with current event
+          const updatedEvent = {
+            ...currentEvent.data,
+            ...updateData
+          };
+
+          const response = await calendar.events.update({
+            calendarId: 'primary',
+            eventId,
+            requestBody: updatedEvent,
+            sendNotifications: true
+          });
+
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                eventId: response.data.id,
+                htmlLink: response.data.htmlLink,
+                status: response.data.status
+              }, null, 2)
+            }]
+          };
+        } catch (error) {
+          throw new Error(`Failed to update event: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
+    );
+
+    // Delete event
+    this.server.tool(
+      "calendar_event_delete",
+      "Delete a calendar event",
+      {
+        email: z.string().describe("Email address of the calendar owner"),
+        eventId: z.string().describe("ID of the event to delete"),
+        sendUpdates: z.enum(["all", "externalOnly", "none"]).optional().describe("Whether to send update notifications")
+      },
+      async ({ email, eventId, sendUpdates }) => {
+        try {
+          await calendar.events.delete({
+            calendarId: 'primary',
+            eventId,
+            sendUpdates: sendUpdates || 'all'
+          });
+
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                deleted: eventId
+              }, null, 2)
+            }]
+          };
+        } catch (error) {
+          throw new Error(`Failed to delete event: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
+    );
+
+    // Manage event responses
+    this.server.tool(
+      "calendar_event_manage",
+      "Manage calendar event responses and updates including accept/decline",
+      {
+        email: z.string().describe("Email address of the calendar owner"),
+        eventId: z.string().describe("ID of the event to manage"),
+        action: z.enum(["accept", "decline", "tentative"]).describe("Action to perform on the event"),
+        comment: z.string().optional().describe("Optional comment to include with the response")
+      },
+      async ({ email, eventId, action, comment }) => {
+        try {
+          // First get the event
+          const event = await calendar.events.get({
+            calendarId: 'primary',
+            eventId
+          });
+
+          // Find the current user in attendees
+          const attendeeIndex = event.data.attendees?.findIndex(
+            attendee => attendee.email === email || attendee.self
+          );
+
+          if (attendeeIndex === undefined || attendeeIndex < 0) {
+            throw new Error("You are not an attendee of this event");
+          }
+
+          // Update attendee response
+          const attendees = [...(event.data.attendees || [])];
+          attendees[attendeeIndex] = {
+            ...attendees[attendeeIndex],
+            responseStatus: action === 'accept' ? 'accepted' : 
+                          action === 'decline' ? 'declined' : 'tentative',
+            comment: comment
+          };
+
+          // Update the event
+          const response = await calendar.events.update({
+            calendarId: 'primary',
+            eventId,
+            requestBody: {
+              ...event.data,
+              attendees
+            },
+            sendNotifications: true
+          });
+
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                eventId: response.data.id,
+                responseStatus: action,
+                comment: comment
+              }, null, 2)
+            }]
+          };
+        } catch (error) {
+          throw new Error(`Failed to manage event: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
+    );
   }
 
   private registerDriveTools() {
@@ -477,7 +1081,268 @@ export class GoogleWorkspaceMCP extends McpAgent<Props, Env> {
       }
     );
 
-    // Add more Drive tools here...
+    // Search files
+    this.server.tool(
+      "drive_files_search",
+      "Search for files in Google Drive with advanced filtering",
+      {
+        email: z.string().describe("Email address of the Drive account"),
+        options: z.object({
+          fullText: z.string().optional().describe("Full text search query"),
+          mimeType: z.string().optional().describe("Filter by MIME type"),
+          folderId: z.string().optional().describe("Filter by parent folder ID"),
+          trashed: z.boolean().optional().describe("Include trashed files"),
+          pageSize: z.number().optional().describe("Maximum number of files to return"),
+          query: z.string().optional().describe("Additional query string")
+        })
+      },
+      async ({ email, options }) => {
+        try {
+          let query = '';
+          
+          if (options.fullText) {
+            query += `fullText contains '${options.fullText}'`;
+          }
+          
+          if (options.mimeType) {
+            query += (query ? ' and ' : '') + `mimeType = '${options.mimeType}'`;
+          }
+          
+          if (options.folderId) {
+            query += (query ? ' and ' : '') + `'${options.folderId}' in parents`;
+          }
+          
+          if (options.trashed !== undefined) {
+            query += (query ? ' and ' : '') + `trashed = ${options.trashed}`;
+          }
+          
+          if (options.query) {
+            query += (query ? ' and ' : '') + options.query;
+          }
+
+          const response = await drive.files.list({
+            q: query || undefined,
+            pageSize: options.pageSize || 100,
+            fields: 'files(id, name, mimeType, modifiedTime, size, parents, webViewLink, webContentLink)'
+          });
+
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                files: response.data.files,
+                nextPageToken: response.data.nextPageToken
+              }, null, 2)
+            }]
+          };
+        } catch (error) {
+          throw new Error(`Failed to search files: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
+    );
+
+    // Download file
+    this.server.tool(
+      "drive_file_download",
+      "Download a file from Google Drive",
+      {
+        email: z.string().describe("Email address of the Drive account"),
+        fileId: z.string().describe("ID of the file to download"),
+        mimeType: z.string().optional().describe("Optional MIME type for export format")
+      },
+      async ({ email, fileId, mimeType }) => {
+        try {
+          // First get file metadata
+          const metadataResponse = await drive.files.get({
+            fileId,
+            fields: 'id, name, mimeType, size'
+          });
+
+          const file = metadataResponse.data;
+          
+          // For Google Workspace files, we need to export them
+          const isGoogleDoc = file.mimeType?.startsWith('application/vnd.google-apps.');
+          
+          if (isGoogleDoc && !mimeType) {
+            // Set default export mime types
+            const exportMimeTypes: Record<string, string> = {
+              'application/vnd.google-apps.document': 'text/plain',
+              'application/vnd.google-apps.spreadsheet': 'text/csv',
+              'application/vnd.google-apps.presentation': 'application/pdf',
+              'application/vnd.google-apps.drawing': 'image/png'
+            };
+            mimeType = exportMimeTypes[file.mimeType!] || 'application/pdf';
+          }
+
+          let content: string;
+          
+          if (isGoogleDoc) {
+            // Export Google Workspace file
+            const response = await drive.files.export({
+              fileId,
+              mimeType: mimeType!
+            }, { responseType: 'text' });
+            
+            content = response.data as string;
+          } else {
+            // Download regular file
+            const response = await drive.files.get({
+              fileId,
+              alt: 'media'
+            }, { responseType: 'text' });
+            
+            content = response.data as string;
+          }
+
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                fileId: file.id,
+                fileName: file.name,
+                mimeType: mimeType || file.mimeType,
+                content: content,
+                size: content.length
+              }, null, 2)
+            }]
+          };
+        } catch (error) {
+          throw new Error(`Failed to download file: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
+    );
+
+    // Create folder
+    this.server.tool(
+      "drive_folder_create",
+      "Create a new folder in Google Drive",
+      {
+        email: z.string().describe("Email address of the Drive account"),
+        name: z.string().describe("Name for the new folder"),
+        parentId: z.string().optional().describe("Optional parent folder ID")
+      },
+      async ({ email, name, parentId }) => {
+        try {
+          const fileMetadata = {
+            name,
+            mimeType: 'application/vnd.google-apps.folder',
+            parents: parentId ? [parentId] : undefined
+          };
+
+          const response = await drive.files.create({
+            requestBody: fileMetadata,
+            fields: 'id, name, webViewLink'
+          });
+
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                folderId: response.data.id,
+                folderName: response.data.name,
+                webViewLink: response.data.webViewLink
+              }, null, 2)
+            }]
+          };
+        } catch (error) {
+          throw new Error(`Failed to create folder: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
+    );
+
+    // Update permissions
+    this.server.tool(
+      "drive_permissions_update",
+      "Update sharing permissions for a Drive file or folder",
+      {
+        email: z.string().describe("Email address of the Drive account"),
+        options: z.object({
+          fileId: z.string().describe("ID of file/folder to update"),
+          role: z.enum(["owner", "organizer", "fileOrganizer", "writer", "commenter", "reader"]),
+          type: z.enum(["user", "group", "domain", "anyone"]),
+          emailAddress: z.string().optional().describe("Email address for user/group sharing"),
+          domain: z.string().optional().describe("Domain for domain sharing"),
+          allowFileDiscovery: z.boolean().optional().describe("Allow file discovery for anyone sharing")
+        })
+      },
+      async ({ email, options }) => {
+        try {
+          const permission: any = {
+            type: options.type,
+            role: options.role
+          };
+
+          if (options.type === 'user' || options.type === 'group') {
+            if (!options.emailAddress) {
+              throw new Error("emailAddress required for user/group sharing");
+            }
+            permission.emailAddress = options.emailAddress;
+          }
+
+          if (options.type === 'domain') {
+            if (!options.domain) {
+              throw new Error("domain required for domain sharing");
+            }
+            permission.domain = options.domain;
+          }
+
+          if (options.type === 'anyone') {
+            permission.allowFileDiscovery = options.allowFileDiscovery;
+          }
+
+          const response = await drive.permissions.create({
+            fileId: options.fileId,
+            requestBody: permission,
+            sendNotificationEmail: true
+          });
+
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                permissionId: response.data.id,
+                role: response.data.role,
+                type: response.data.type
+              }, null, 2)
+            }]
+          };
+        } catch (error) {
+          throw new Error(`Failed to update permissions: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
+    );
+
+    // Delete file
+    this.server.tool(
+      "drive_file_delete",
+      "Delete a file or folder from Google Drive",
+      {
+        email: z.string().describe("Email address of the Drive account"),
+        fileId: z.string().describe("ID of the file/folder to delete")
+      },
+      async ({ email, fileId }) => {
+        try {
+          await drive.files.delete({
+            fileId
+          });
+
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                success: true,
+                deleted: fileId
+              }, null, 2)
+            }]
+          };
+        } catch (error) {
+          throw new Error(`Failed to delete file: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
+    );
   }
 
   private registerContactsTools() {
