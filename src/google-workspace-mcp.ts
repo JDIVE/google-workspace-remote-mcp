@@ -17,6 +17,19 @@ type Props = {
   };
 };
 
+interface Env {
+  GOOGLE_CLIENT_ID: string;
+  GOOGLE_CLIENT_SECRET: string;
+  WORKER_URL: string;
+  GITHUB_CLIENT_ID: string;
+  GITHUB_CLIENT_SECRET: string;
+  OAUTH_KV: KVNamespace;
+  OAUTH_TOKENS: KVNamespace;
+  RATE_LIMITS: KVNamespace;
+  MCP_OBJECT: DurableObjectNamespace;
+  COOKIE_ENCRYPTION_KEY?: string;
+}
+
 export class GoogleWorkspaceMCP extends McpAgent<Props, Env> {
   server = new McpServer({
     name: "Google Workspace MCP Server",
@@ -31,9 +44,9 @@ export class GoogleWorkspaceMCP extends McpAgent<Props, Env> {
     try {
       // Initialize Google OAuth client
       this.oauth2Client = new google.auth.OAuth2(
-        this.env.GOOGLE_CLIENT_ID,
-        this.env.GOOGLE_CLIENT_SECRET,
-        `${this.env.WORKER_URL}/oauth/callback`
+        (this.env as Env).GOOGLE_CLIENT_ID,
+        (this.env as Env).GOOGLE_CLIENT_SECRET,
+        `${(this.env as Env).WORKER_URL}/oauth/callback`
       );
 
       // Set credentials from stored tokens
