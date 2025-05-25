@@ -15,11 +15,13 @@ interface Env {
   RATE_LIMITS: KVNamespace;
   MCP_OBJECT: DurableObjectNamespace;
   COOKIE_ENCRYPTION_KEY?: string;
+  ENCRYPTION_KEY?: string;
+  OAUTH_STATE?: KVNamespace;
 }
 
 export type { Env };
 
-export default new OAuthProvider<Env>({
+export default new OAuthProvider({
   apiRoute: "/sse",
   apiHandler: GoogleWorkspaceMCP.mount("/sse"),
   defaultHandler: GitHubHandler,

@@ -3,6 +3,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { google } from "googleapis";
 import { OAuth2Client } from "google-auth-library";
+import type { DurableObjectState } from "@cloudflare/workers-types";
 
 type Props = {
   login: string;
@@ -28,15 +29,26 @@ interface Env {
   RATE_LIMITS: KVNamespace;
   MCP_OBJECT: DurableObjectNamespace;
   COOKIE_ENCRYPTION_KEY?: string;
+  ENCRYPTION_KEY?: string;
+  OAUTH_STATE?: KVNamespace;
 }
 
-export class GoogleWorkspaceMCP extends McpAgent<Props, Env> {
+export class GoogleWorkspaceMCP extends McpAgent<Env, unknown, Props> {
   server = new McpServer({
     name: "Google Workspace MCP Server",
     version: "1.0.0",
   });
 
   private oauth2Client!: OAuth2Client;
+  
+  // Define initial state for token storage
+  initialState = {
+    googleTokens: {} as {
+      access_token: string;
+      refresh_token: string;
+      expires_at: number;
+    }
+  };
 
   async init() {
     console.log("Initializing GoogleWorkspaceMCP server");
@@ -44,9 +56,9 @@ export class GoogleWorkspaceMCP extends McpAgent<Props, Env> {
     try {
       // Initialize Google OAuth client
       this.oauth2Client = new google.auth.OAuth2(
-        (this.env as Env).GOOGLE_CLIENT_ID,
-        (this.env as Env).GOOGLE_CLIENT_SECRET,
-        `${(this.env as Env).WORKER_URL}/oauth/callback`
+        this.env.GOOGLE_CLIENT_ID,
+        this.env.GOOGLE_CLIENT_SECRET,
+        `${this.env.WORKER_URL}/oauth/callback`
       );
 
       // Set credentials from stored tokens
@@ -73,9 +85,17 @@ export class GoogleWorkspaceMCP extends McpAgent<Props, Env> {
         
         // Persist the updated tokens back to Durable Objects storage
         try {
-          await this.updateProps({
+          // Update the props object with new tokens
+          this.props = {
+            ...this.props,
+            googleTokens: this.props.googleTokens
+          };
+          
+          // Use setState to persist to Durable Objects
+          this.setState({
             googleTokens: this.props.googleTokens
           });
+          
           console.log('Successfully persisted updated tokens to Durable Objects');
         } catch (error) {
           console.error('Failed to persist tokens:', error);
